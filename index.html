@@ -595,12 +595,50 @@ function allUnitWords(){ return S.units.flatMap(u=>u.words); }
 /* =====================================================================
    发音
 ===================================================================== */
-function speak(text){
+/* —— 发音系统：单词优先用词典真人录音，句子用最自然的合成嗓音 —— */
+function enVoices(){
+  try{ return speechSynthesis.getVoices().filter(v=>v.lang.replace('_','-').toLowerCase().startsWith('en')); }catch(e){ return []; }
+}
+function currentVoice(){
+  const vs = enVoices();
+  if(S.settings.voice){ const f = vs.find(v=>v.name===S.settings.voice); if(f) return f; }
+  const score = v =>
+    /enhanced|premium/i.test(v.name) ? 4 :
+    /Samantha|Ava|Zoe|Allison|Susan|Karen|Moira/i.test(v.name) ? 3 :
+    /Google US English/i.test(v.name) ? 3 :
+    v.lang.replace('_','-')==='en-US' ? 2 : 1;
+  return vs.sort((a,b)=>score(b)-score(a))[0] || null;
+}
+function ttsSpeak(text, cb){
   try{
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US'; u.rate = 0.8;
+    u.lang = 'en-US';
+    const v = currentVoice();
+    if(v) u.voice = v;
+    u.rate = text.trim().split(/\s+/).length > 2 ? 0.88 : 0.75;
+    u.pitch = 1.05;
+    let done = false;
+    const fin = ()=>{ if(!done){ done = true; cb && cb(); } };
+    u.onend = fin;
+    if(cb) setTimeout(fin, 15000);
     speechSynthesis.cancel(); speechSynthesis.speak(u);
-  }catch(e){}
+  }catch(e){ cb && cb(); }
+}
+function speak(text){
+  const short = text.trim().split(/\s+/).length <= 3 && /^[A-Za-z'’\-\. ]{1,40}$/.test(text);
+  if(short && navigator.onLine !== false){
+    try{
+      const a = new Audio('https://dict.youdao.com/dictvoice?audio=' + encodeURIComponent(text) + '&type=2');
+      let done = false;
+      const fb = ()=>{ if(!done){ done = true; ttsSpeak(text); } };
+      a.onerror = fb;
+      a.onplay = ()=>{ done = true; };
+      setTimeout(()=>{ if(!done && a.readyState < 2) fb(); }, 2500);
+      a.play().catch(fb);
+      return;
+    }catch(e){}
+  }
+  ttsSpeak(text);
 }
 
 /* =====================================================================
@@ -974,17 +1012,7 @@ function renderDictation(body, st){
 }
 
 /* —— 步骤4：场景选择题（3个选项，均可听；选对后播完整句再跳转） —— */
-function speakCb(text, cb){
-  try{
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US'; u.rate = 0.8;
-    let done = false;
-    const fin = ()=>{ if(!done){ done = true; cb && cb(); } };
-    u.onend = fin;
-    setTimeout(fin, 8000); // 兜底，防止onend不触发卡死
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
-  }catch(e){ cb && cb(); }
-}
+function speakCb(text, cb){ ttsSpeak(text, cb); }
 function renderQuiz(body, st){
   const d = info(st.w);
   const correct = d.sc[Math.floor(Math.random()*d.sc.length)];
@@ -1223,6 +1251,12 @@ function renderParent(){
         <span style="font-size:15px;">每周打卡目标：</span>
         ${[3,4,5,6,7].map(n=>`<button class="chip ${S.settings.weekly===n?'on':''}" onclick="setWeekly(${n})">${n} 次</button>`).join('')}
       </div>
+      <div class="goal-row" style="margin-top:14px;">
+        <span style="font-size:15px;">朗读声音：</span>
+        <select id="voice-sel" style="font-size:15px; padding:8px 10px; border-radius:12px; border:2px solid #F0E2D0; font-family:inherit; max-width:260px;"></select>
+        <button class="chip" onclick="speak('I like bananas. Let us read together!')">🔊 试听</button>
+      </div>
+      <div class="hint" style="margin-top:6px;">觉得声音太机器？去 iPad「设置 → 辅助功能 → 朗读内容 → 声音 → 英语（美国）」下载 <b>Samantha（增强版）</b>，下载完回到这里刷新就能选到，自然度好非常多。</div>
       <div style="margin-top:18px; border-top:2px solid #F7EDE0; padding-top:14px;">
         <b style="font-size:15px;">💾 学习数据备份</b>
         <div class="hint" style="margin-top:4px;">数据只存在这台 iPad 上。建议<b>每周点一次「导出备份码」</b>，复制发到微信收藏；换设备或数据丢了，粘贴回来点「导入」即可恢复。</div>
@@ -1240,6 +1274,18 @@ function renderParent(){
   renderUnitChips();
   renderSavedUnits();
   document.getElementById('autofill-btn').onclick = autoFill;
+  // 填充嗓音选择器
+  const sel = document.getElementById('voice-sel');
+  if(sel){
+    const fill = ()=>{
+      const vs = enVoices();
+      sel.innerHTML = '<option value="">✨ 自动（挑最自然的）</option>' +
+        vs.map(v=>`<option value="${v.name}" ${S.settings.voice===v.name?'selected':''}>${v.name}${/enhanced|premium/i.test(v.name)?' ⭐推荐':''}</option>`).join('');
+    };
+    fill();
+    speechSynthesis.onvoiceschanged = fill;
+    sel.onchange = ()=>{ S.settings.voice = sel.value || null; save(); };
+  }
 }
 
 function setWeekly(n){ S.settings.weekly = n; save(); renderParent(); }
