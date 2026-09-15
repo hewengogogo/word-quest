@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>单词小探险</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --bg:#FFF6EA; --card:#FFFFFF; --ink:#4A3728; --ink-soft:#9C8570;
+    --orange:#FF8A3D; --orange-deep:#F0711E; --teal:#2EC4B6; --teal-deep:#23A397;
+    --red:#FF6B6B; --yellow:#FFD166; --radius:24px;
+  }
+  html,body{ height:100%; }
+  body{
+    font-family:'Chalkboard SE','Comic Sans MS','PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg); color:var(--ink);
+    max-width:820px; margin:0 auto; min-height:100%;
+    display:flex; flex-direction:column;
+  }
+  .screen{ display:none; flex:1; flex-direction:column; padding:20px 22px 110px; animation:pop .25s ease; }
+  .screen.active{ display:flex; }
+  @keyframes pop{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+
+  .card{ background:var(--card); border-radius:var(--radius); padding:22px; box-shadow:0 4px 0 rgba(74,55,40,.08); }
+  .big-btn{
+    display:block; width:100%; border:none; cursor:pointer;
+    background:var(--orange); color:#fff; font-size:23px; font-weight:bold;
+    padding:18px; border-radius:20px; font-family:inherit;
+    box-shadow:0 5px 0 var(--orange-deep); transition:transform .08s;
+  }
+  .big-btn:active{ transform:translateY(4px); box-shadow:0 1px 0 var(--orange-deep); }
+  .big-btn.teal{ background:var(--teal); box-shadow:0 5px 0 var(--teal-deep); }
+  .big-btn.teal:active{ box-shadow:0 1px 0 var(--teal-deep); }
+  .big-btn:disabled{ opacity:.45; pointer-events:none; }
+  .tag{ display:inline-block; background:#FFF0E0; color:var(--orange-deep); border-radius:999px; padding:4px 14px; font-size:14px; font-weight:bold; }
+  .tag.green{ background:#E4F8F6; color:#1A8F85; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .topbar h1{ font-size:22px; }
+  .streak{ background:#fff; border-radius:999px; padding:8px 16px; font-weight:bold; font-size:16px; box-shadow:0 3px 0 rgba(74,55,40,.08); }
+
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0; max-width:820px; margin:0 auto;
+    background:#fff; display:flex; border-top:2px solid #F3E7D8; z-index:10;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+  }
+  .tab{ flex:1; text-align:center; color:var(--ink-soft); font-size:13px; cursor:pointer; padding:6px 0; }
+  .tab .ico{ font-size:26px; display:block; }
+  .tab.on{ color:var(--orange-deep); font-weight:bold; }
+
+  .steps{ display:flex; gap:6px; margin-bottom:18px; }
+  .steps i{ flex:1; height:8px; border-radius:99px; background:#F0E2D0; }
+  .steps i.done{ background:var(--teal); }
+  .steps i.now{ background:var(--yellow); }
+
+  .week-dots{ display:flex; gap:10px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .week-dots i{
+    width:32px; height:32px; border-radius:50%; background:#F0E2D0;
+    display:flex; align-items:center; justify-content:center; font-size:15px; font-style:normal; font-weight:bold; color:var(--ink-soft);
+  }
+  .week-dots i.hit{ background:var(--yellow); color:var(--ink); }
+  .week-dots span{ font-size:14px; color:var(--ink-soft); margin-left:2px; }
+
+  .unit-card{ display:flex; align-items:center; gap:14px; margin-top:12px; cursor:pointer; border:3px solid transparent; }
+  .unit-card:active{ transform:scale(.98); }
+  .unit-card .u-ico{ font-size:38px; }
+  .unit-card .u-body{ flex:1; }
+  .unit-card .u-name{ font-size:19px; font-weight:bold; }
+  .unit-card .u-sub{ font-size:13px; color:var(--ink-soft); margin-top:2px; }
+  .unit-card .u-badge{ font-size:12px; font-weight:bold; border-radius:999px; padding:5px 12px; white-space:nowrap; }
+  .u-badge.done{ background:#E4F8F6; color:#1A8F85; }
+  .u-badge.doing{ background:#FFF0E0; color:var(--orange-deep); }
+  .u-badge.new{ background:#F0E2D0; color:var(--ink-soft); }
+
+  .word-hero{ text-align:center; padding:24px 20px 18px; }
+  .word-hero .pic{ font-size:66px; }
+  .word-hero .en{ font-size:44px; font-weight:bold; letter-spacing:2px; margin:8px 0 2px; }
+  .word-hero .phon{ font-size:17px; color:var(--ink-soft); }
+  .word-hero .syll{ font-size:20px; color:var(--teal); font-weight:bold; letter-spacing:3px; margin-top:2px; }
+  .word-hero .cn{ font-size:20px; color:var(--ink-soft); margin-top:6px; }
+
+  .scene-card{ background:#F4FBFA; border-radius:16px; padding:14px 16px; margin-top:12px; text-align:left; }
+  .scene-card .sc-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .scene-card .sc-tag{ font-size:13px; font-weight:bold; color:#1A8F85; background:#DFF7F5; border-radius:999px; padding:3px 12px; }
+  .scene-card .sc-en{ font-size:19px; line-height:1.5; }
+  .scene-card .sc-cn{ font-size:15px; color:var(--ink-soft); margin-top:3px; }
+  .mini-speak{
+    border:none; background:var(--teal); color:#fff; border-radius:50%;
+    width:38px; height:38px; font-size:17px; cursor:pointer; flex-shrink:0;
+    box-shadow:0 3px 0 var(--teal-deep);
+  }
+  .mini-speak:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--teal-deep); }
+
+  .speak-btn{
+    border:none; background:var(--teal); color:#fff; font-size:18px; font-weight:bold;
+    border-radius:999px; padding:10px 22px; margin-top:14px; cursor:pointer; font-family:inherit;
+    box-shadow:0 4px 0 var(--teal-deep);
+  }
+  .speak-btn:active{ transform:translateY(3px); box-shadow:0 1px 0 var(--teal-deep); }
+
+  .mix-banner{
+    background:#FFF0E0; border-radius:14px; padding:10px 16px; font-size:14px;
+    color:var(--orange-deep); font-weight:bold; margin-top:12px; text-align:center;
+  }
+
+  .spell-row{ display:flex; justify-content:center; gap:10px; margin:26px 0; flex-wrap:wrap; }
+  .slot{
+    width:52px; height:62px; border-radius:14px; background:#FFF0E0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:32px; font-weight:bold; color:var(--ink);
+  }
+  .slot.blank{ background:#fff; border:3px dashed var(--orange); color:var(--orange-deep); }
+  .slot.right{ background:#DFF7F5; border:3px solid var(--teal); color:#1A8F85; }
+  .slot.wrong{ animation:shake .3s; border-color:var(--red); color:var(--red); }
+  @keyframes shake{ 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);} }
+  .letters{ display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
+  .letter-btn{
+    width:58px; height:58px; border:none; border-radius:16px; cursor:pointer;
+    background:#fff; font-size:28px; font-weight:bold; color:var(--ink); font-family:inherit;
+    box-shadow:0 4px 0 #E4D5C3;
+  }
+  .letter-btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #E4D5C3; }
+  .letter-btn.used{ opacity:.25; pointer-events:none; }
+
+  .dict-row{ display:flex; justify-content:center; gap:8px; margin:26px 0; flex-wrap:wrap; }
+  .dict-row input{
+    width:46px; height:58px; text-align:center; font-size:30px; font-weight:bold;
+    border:3px solid #F0E2D0; border-radius:14px; font-family:inherit; color:var(--ink);
+    background:#fff; outline:none; text-transform:lowercase;
+  }
+  .dict-row input:focus{ border-color:var(--orange); }
+  .dict-row .spacer{ width:18px; }
+
+  .choice{ text-align:left; margin-top:14px; cursor:pointer; border:3px solid transparent; font-size:19px; line-height:1.5; }
+  .choice .em{ font-size:30px; margin-right:10px; }
+  .choice.picked-right{ border-color:var(--teal); background:#F4FBFA; }
+  .choice.picked-wrong{ border-color:var(--red); background:#FFF5F5; }
+
+  .stars{ font-size:60px; text-align:center; letter-spacing:8px; margin:18px 0; }
+  .stars span{ display:inline-block; animation:starpop .5s backwards; }
+  .stars span:nth-child(2){ animation-delay:.2s; } .stars span:nth-child(3){ animation-delay:.4s; }
+  @keyframes starpop{ from{ transform:scale(0) rotate(-40deg);} to{ transform:scale(1) rotate(0);} }
+
+  .miss-item{ display:flex; align-items:center; justify-content:space-between; padding:14px 4px; border-bottom:2px solid #F7EDE0; }
+  .miss-item:last-child{ border-bottom:none; }
+  .miss-item .w{ font-size:22px; font-weight:bold; }
+  .miss-item .w b{ color:var(--red); }
+  .miss-item .tip{ font-size:13px; color:var(--ink-soft); margin-top:2px; }
+  .pill{ background:#FFF0E0; color:var(--orange-deep); border-radius:999px; padding:5px 12px; font-size:13px; font-weight:bold; white-space:nowrap; }
+
+  textarea{
+    width:100%; min-height:100px; border:3px solid #F0E2D0; border-radius:16px;
+    padding:14px; font-size:17px; font-family:inherit; color:var(--ink); background:#fff; outline:none; resize:vertical;
+  }
+  textarea:focus{ border-color:var(--orange); }
+  .stat-grid{ display:flex; gap:12px; margin:16px 0; }
+  .stat{ flex:1; background:#fff; border-radius:16px; padding:14px; text-align:center; box-shadow:0 3px 0 rgba(74,55,40,.06); }
+  .stat b{ font-size:22px; color:var(--orange-deep); display:block; }
+  .stat span{ font-size:12px; color:var(--ink-soft); }
+  .hint{ font-size:14px; color:var(--ink-soft); line-height:1.7; margin-top:10px; }
+
+  .unit-chips{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .chip{
+    border:2px solid #F0E2D0; background:#fff; color:var(--ink); border-radius:999px;
+    padding:8px 18px; font-size:15px; font-weight:bold; cursor:pointer; font-family:inherit;
+  }
+  .chip.on{ background:var(--orange); border-color:var(--orange); color:#fff; }
+  .chip.add{ border-style:dashed; color:var(--ink-soft); }
+
+  .word-table{ margin-top:14px; }
+  .wt-row{ border:2px solid #F7EDE0; border-radius:14px; padding:12px 14px; margin-top:10px; }
+  .wt-row .wt-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .wt-row .wt-en{ font-size:20px; font-weight:bold; }
+  .wt-row .wt-phon{ font-size:14px; color:var(--ink-soft); }
+  .wt-row .wt-cn{ font-size:16px; }
+  .wt-row .wt-auto{ font-size:12px; color:#1A8F85; background:#DFF7F5; border-radius:99px; padding:2px 10px; font-weight:bold; }
+  .wt-row .wt-manual{ font-size:12px; color:#fff; background:var(--red); border-radius:99px; padding:2px 10px; font-weight:bold; }
+  .wt-row input{ border:2px solid #F0E2D0; border-radius:10px; padding:8px 10px; font-size:15px; font-family:inherit; width:100%; margin-top:8px; outline:none; }
+
+  .saved-unit{ border-top:2px solid #F7EDE0; padding:12px 0; }
+  .saved-unit b{ font-size:16px; }
+  .saved-unit .words{ margin-top:6px; display:flex; flex-wrap:wrap; gap:8px; }
+  .wchip{ background:#FFF6EA; border-radius:999px; padding:5px 12px; font-size:14px; display:inline-flex; align-items:center; gap:6px; }
+  .wchip i{ font-style:normal; color:var(--red); cursor:pointer; font-weight:bold; }
+  .goal-row{ display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  .empty-note{ text-align:center; color:var(--ink-soft); padding:30px 10px; font-size:15px; line-height:1.8; }
+  .link-btn{ border:none; background:none; color:var(--ink-soft); text-decoration:underline; font-size:13px; cursor:pointer; font-family:inherit; }
+</style>
+</head>
+<body>
+
+<!-- ============ 首页 ============ -->
+<div class="screen active" id="s-home"></div>
+
+<!-- ============ 单元选择 ============ -->
+<div class="screen" id="s-units"></div>
+
+<!-- ============ 学习流程（动态） ============ -->
+<div class="screen" id="s-play">
+  <div class="steps" id="play-steps"></div>
+  <div id="play-body" style="display:flex; flex-direction:column; flex:1;"></div>
+</div>
+
+<!-- ============ 自由练习场 ============ -->
+<div class="screen" id="s-arena"></div>
+
+<!-- ============ 错词本 ============ -->
+<div class="screen" id="s-mistake"></div>
+
+<!-- ============ 家长页 ============ -->
+<div class="screen" id="s-parent"></div>
+
+<div class="tabbar">
+  <div class="tab on" data-t="s-home" onclick="tab(this)"><span class="ico">🏠</span>学习</div>
+  <div class="tab" data-t="s-mistake" onclick="tab(this)"><span class="ico">📕</span>错词本</div>
+  <div class="tab" data-t="s-parent" onclick="tab(this)"><span class="ico">👨‍👩‍👧</span>家长录词</div>
+</div>
+
+<script>
+/* =====================================================================
+   内置词典：人教版PEP三年级核心词（约110个）
+   格式：word: [音标, 音节拆分, 中文, emoji, [[场景标签, 英文例句, 中文], ...]]
+===================================================================== */
+const DICT = {};
+function D(w,p,s,c,e,sc){ DICT[w] = {p,s,c,e,sc}; }
+
+/* —— 文具 —— */
+D('pen','/pen/','pen','钢笔','🖊️',[['✏️ 借东西时','May I use your pen?','我能用一下你的钢笔吗？'],['🎒 收拾书包','Put the pen in your bag.','把钢笔放进书包。']]);
+D('pencil','/ˈpensl/','pen·cil','铅笔','✏️',[['🎨 画画前','I draw with a pencil.','我用铅笔画画。'],['🏫 上课时','Take out your pencil, please.','请拿出你的铅笔。']]);
+D('ruler','/ˈruːlə/','ru·ler','尺子','📏',[['📐 画直线时','I use a ruler to draw a line.','我用尺子画直线。'],['🙋 借东西时','Can I borrow your ruler?','能借我你的尺子吗？']]);
+D('eraser','/ɪˈreɪzə/','e·ra·ser','橡皮','🧽',[['✏️ 写错字时','I need an eraser.','我需要一块橡皮。'],['🙋 借东西时','Lend me your eraser, please.','请借我一下橡皮。']]);
+D('crayon','/ˈkreɪən/','cray·on','蜡笔','🖍️',[['🎨 画画时','I colour the sun with a yellow crayon.','我用黄蜡笔画太阳。'],['🖍️ 说数量','I have twelve crayons.','我有十二支蜡笔。']]);
+D('bag','/bæɡ/','bag','书包','🎒',[['🎒 上学前','My bag is heavy today.','我今天的书包很重。'],['🧹 收拾时','Put your books in the bag.','把书放进书包。']]);
+D('book','/bʊk/','book','书','📖',[['📖 上课','Open your books, please.','请打开书。'],['🌙 睡前','I read a book before bed.','我睡前读一本书。']]);
+D('pencil box','/ˈpensl bɒks/','pen·cil box','铅笔盒','📦',[['✏️ 收拾文具','Put the pen in the pencil box.','把钢笔放进铅笔盒。'],['🎒 上学前','Is your pencil box in your bag?','铅笔盒放进书包了吗？']]);
+
+/* —— 颜色 —— */
+D('red','/red/','red','红色','🔴',[['🍎 说颜色','The apple is red.','苹果是红色的。'],['🚦 过马路','Stop! The light is red.','停！现在是红灯。']]);
+D('yellow','/ˈjeləʊ/','yel·low','黄色','🟡',[['🍌 说颜色','The banana is yellow.','香蕉是黄色的。'],['🌻 看花','I like the yellow flower.','我喜欢那朵黄色的花。']]);
+D('blue','/bluː/','blue','蓝色','🔵',[['🌤️ 看天空','The sky is blue.','天空是蓝色的。'],['🎒 说东西','My bag is blue.','我的书包是蓝色的。']]);
+D('green','/ɡriːn/','green','绿色','🟢',[['🌿 看树叶','The leaves are green.','树叶是绿色的。'],['🚦 过马路','Go! The light is green.','走！绿灯亮了。']]);
+D('black','/blæk/','black','黑色','⚫',[['🐱 说动物','The cat is black.','这只猫是黑色的。'],['🎨 画画','Colour it black.','把它涂成黑色。']]);
+D('white','/waɪt/','white','白色','⚪',[['🐰 说动物','The rabbit is white.','兔子是白色的。'],['☁️ 看云','The clouds are white.','云是白色的。']]);
+D('orange','/ˈɒrɪndʒ/','or·ange','橙色；橙子','🟠',[['🍊 说颜色','The orange is orange!','橙子是橙色的！'],['🎨 画画','I like orange crayons.','我喜欢橙色的蜡笔。']]);
+D('brown','/braʊn/','brown','棕色','🟤',[['🐻 说动物','The bear is brown.','熊是棕色的。'],['👟 说鞋子','My shoes are brown.','我的鞋子是棕色的。']]);
+
+/* —— 身体 —— */
+D('face','/feɪs/','face','脸','😊',[['🧼 早上起床','I wash my face every morning.','我每天早上洗脸。'],['😊 说表情','She has a happy face.','她满脸笑容。']]);
+D('ear','/ɪə/','ear','耳朵','👂',[['👂 听声音','I hear with my ears.','我用耳朵听声音。'],['🐰 说动物','The rabbit has long ears.','兔子的耳朵长长的。']]);
+D('eye','/aɪ/','eye','眼睛','👁️',[['👀 看东西','I see with my eyes.','我用眼睛看东西。'],['✨ 说长相','Her eyes are big and bright.','她的眼睛又大又亮。']]);
+D('nose','/nəʊz/','nose','鼻子','👃',[['🌸 闻花香','I smell flowers with my nose.','我用鼻子闻花香。'],['🤧 感冒时','My nose is running.','我流鼻涕了。']]);
+D('mouth','/maʊθ/','mouth','嘴巴','👄',[['🍚 吃饭时','Open your mouth, please.','请张开嘴。'],['🪥 刷牙','Brush your teeth and clean your mouth.','刷牙，把小嘴刷干净。']]);
+D('arm','/ɑːm/','arm','手臂','💪',[['👋 打招呼','Wave your arm and say hello.','挥挥手臂打个招呼。'],['🏃 做运动','My arms are strong.','我的手臂很有力。']]);
+D('hand','/hænd/','hand','手','✋',[['🙋 上课提问','Put up your hand.','请举手。'],['🧼 饭前','Wash your hands before dinner.','饭前要洗手。']]);
+D('head','/hed/','head','头','🎩',[['🎩 说穿戴','The hat is on my head.','帽子戴在我头上。'],['🤕 磕碰时','I bumped my head.','我撞到脑袋了。']]);
+D('body','/ˈbɒdi/','bod·y','身体','🤸',[['🛀 洗澡时','Wash your body well.','洗澡要洗干净。'],['🏃 说健康','Exercise is good for your body.','运动对身体好。']]);
+D('leg','/leɡ/','leg','腿','🦵',[['🏃 跑步','My legs run fast.','我的腿跑得很快。'],['🐸 说动物','The frog has strong legs.','青蛙的腿很有力。']]);
+D('foot','/fʊt/','foot','脚','🦶',[['⚽ 踢球','I kick the ball with my foot.','我用脚踢球。'],['👣 说长大','My feet are growing.','我的脚在长大。']]);
+
+/* —— 动物 —— */
+D('duck','/dʌk/','duck','鸭子','🦆',[['🏞️ 去公园','The duck swims in the lake.','鸭子在湖里游泳。'],['🎵 唱儿歌','Five little ducks went out one day.','五只小鸭子出门了。']]);
+D('pig','/pɪɡ/','pig','猪','🐷',[['🚜 农场里','The pig is fat and pink.','这只猪又胖又粉。'],['📖 读故事','The three little pigs built houses.','三只小猪盖房子。']]);
+D('cat','/kæt/','cat','猫','🐱',[['🐱 说宠物','My cat sleeps all day.','我的猫整天睡觉。'],['🐭 看动画','The cat runs after the mouse.','猫追着老鼠跑。']]);
+D('bear','/beə/','bear','熊','🐻',[['🧸 说玩具','I sleep with my teddy bear.','我抱着泰迪熊睡觉。'],['🍯 森林里的','The bear likes honey.','熊喜欢蜂蜜。']]);
+D('dog','/dɒɡ/','dog','狗','🐶',[['🐶 说宠物','My dog can catch a ball.','我的狗会接球。'],['🚶 晚饭后','I walk my dog after dinner.','晚饭后我遛狗。']]);
+D('elephant','/ˈelɪfənt/','e·le·phant','大象','🐘',[['🐘 动物园','The elephant has a long nose.','大象的鼻子长长的。'],['💦 看表演','The elephant sprays water.','大象会喷水。']]);
+D('monkey','/ˈmʌŋki/','mon·key','猴子','🐵',[['🍌 说喜欢','The monkey loves bananas.','猴子最爱香蕉。'],['🌳 爬树','The monkey climbs the tree fast.','猴子爬树很快。']]);
+D('bird','/bɜːd/','bird','鸟','🐦',[['🌅 早上','The bird sings in the morning.','小鸟在早晨唱歌。'],['🌸 春天','The bird is building a nest.','小鸟在筑巢。']]);
+D('tiger','/ˈtaɪɡə/','ti·ger','老虎','🐯',[['🐯 动物园','The tiger is big and strong.','老虎又大又壮。'],['👑 读故事','The tiger is the king of the forest.','老虎是森林之王。']]);
+D('panda','/ˈpændə/','pan·da','熊猫','🐼',[['🎋 说动物','The panda eats bamboo.','熊猫吃竹子。'],['🇨🇳 说中国','Pandas live in China.','熊猫生活在中国。']]);
+D('zoo','/zuː/','zoo','动物园','🦁',[['🎡 周末去哪儿','We go to the zoo on Sunday.','我们周日去动物园。'],['📸 拍照','I take photos at the zoo.','我在动物园拍照。']]);
+
+/* —— 食物 —— */
+D('bread','/bred/','bread','面包','🍞',[['🍳 早餐','I have bread and milk for breakfast.','我早餐吃面包喝牛奶。'],['🛒 买东西','Mum buys some bread.','妈妈买了一些面包。']]);
+D('juice','/dʒuːs/','juice','果汁','🧃',[['🥤 口渴时','I want a glass of orange juice.','我想要一杯橙汁。'],['🍎 说什么味道','Apple juice is sweet.','苹果汁甜甜的。']]);
+D('egg','/eɡ/','egg','鸡蛋','🥚',[['🍳 早餐','I eat an egg every morning.','我每天早晨吃一个鸡蛋。'],['🐔 农场','The hen lays eggs.','母鸡下蛋。']]);
+D('milk','/mɪlk/','milk','牛奶','🥛',[['🌙 睡前','Drink some milk before bed.','睡前喝点牛奶。'],['💪 说健康','Milk makes you strong.','牛奶让你长得壮。']]);
+D('water','/ˈwɔːtə/','wa·ter','水','💧',[['🏃 运动后','Drink water after running.','跑步后要喝水。'],['🌞 天热','I want some water, please.','请给我一些水。']]);
+D('cake','/keɪk/','cake','蛋糕','🎂',[['🎂 过生日','Happy birthday! Eat the cake.','生日快乐！吃蛋糕吧。'],['🍫 说喜欢','Chocolate cake is my favourite.','巧克力蛋糕是我的最爱。']]);
+D('fish','/fɪʃ/','fish','鱼','🐟',[['🍽️ 晚饭','We have fish for dinner.','我们晚饭吃鱼。'],['🎣 周末','Grandpa goes fishing by the river.','爷爷去河边钓鱼。']]);
+D('rice','/raɪs/','rice','米饭','🍚',[['🍚 吃饭','I eat rice every day.','我每天吃米饭。'],['🌾 说粮食','Rice grows in the fields.','水稻长在田里。']]);
+
+/* —— 数字 1-10 —— */
+D('one','/wʌn/','one','一','1️⃣',[['☝️ 数数','One little finger.','一根小手指。'],['🍎 说数量','I have one apple.','我有一个苹果。']]);
+D('two','/tuː/','two','二','2️⃣',[['👀 说身体','I have two eyes.','我有两只眼睛。'],['🐦 数数','Two little birds.','两只小鸟。']]);
+D('three','/θriː/','three','三','3️⃣',[['🐷 讲故事','Three little pigs.','三只小猪。'],['🖍️ 说数量','I have three crayons.','我有三支蜡笔。']]);
+D('four','/fɔː/','four','四','4️⃣',[['🐶 说动物','The dog has four legs.','狗有四条腿。'],['🚗 说轮子','A car has four wheels.','汽车有四个轮子。']]);
+D('five','/faɪv/','five','五','5️⃣',[['🖐️ 数数','Five fingers on one hand.','一只手有五根手指。'],['⭐ 打分','I give it five stars.','我给它五颗星。']]);
+D('six','/sɪks/','six','六','6️⃣',[['🍌 说数量','Mum buys six bananas.','妈妈买了六根香蕉。'],['🎲 玩游戏','I got six on the dice.','我掷出了六点。']]);
+D('seven','/ˈsevn/','se·ven','七','7️⃣',[['🌈 看彩虹','A rainbow has seven colours.','彩虹有七种颜色。'],['⏰ 起床','I get up at seven.','我七点起床。']]);
+D('eight','/eɪt/','eight','八','8️⃣',[['🕷️ 说动物','A spider has eight legs.','蜘蛛有八条腿。'],['🎂 说年龄','My brother is eight.','我哥哥八岁了。']]);
+D('nine','/naɪn/','nine','九','9️⃣',[['🌙 睡觉','I go to bed at nine.','我九点上床睡觉。'],['🐱 谚语','A cat has nine lives.','猫有九条命。']]);
+D('ten','/ten/','ten','十','🔟',[['🙌 数数','Ten little fingers.','十根小手指。'],['🎯 满分','Ten points! You win!','十分！你赢啦！']]);
+
+/* —— 家人 —— */
+D('father','/ˈfɑːðə/','fa·ther','爸爸','👨',[['👨 介绍家人','My father is tall.','我爸爸个子高。'],['📸 看照片','This is my father.','这是我爸爸。']]);
+D('dad','/dæd/','dad','爸爸（口语）','👨',[['🏠 到家喊人','Dad, I am home!','爸爸，我回来啦！'],['⚽ 一起玩','I play ball with Dad.','我和爸爸玩球。']]);
+D('mother','/ˈmʌðə/','mo·ther','妈妈','👩',[['👩 介绍家人','My mother is kind.','我妈妈很温柔。'],['❤️ 说爱','I love my mother.','我爱我妈妈。']]);
+D('mum','/mʌm/','mum','妈妈（口语）','👩',[['🏠 日常喊','Mum, what is for dinner?','妈妈，晚饭吃什么？'],['🤗 说爱','My mum hugs me every day.','妈妈每天抱我。']]);
+D('man','/mæn/','man','男人','👨',[['🖼️ 看图说话','The man is my uncle.','这位男士是我叔叔。'],['🚌 说看到的','A man is driving the bus.','一位男士在开公交车。']]);
+D('woman','/ˈwʊmən/','wom·an','女人','👩',[['🖼️ 看图说话','The woman is my teacher.','这位女士是我的老师。'],['🌷 说看到的','The woman sells flowers.','那位女士在卖花。']]);
+D('sister','/ˈsɪstə/','sis·ter','姐姐；妹妹','👧',[['👭 介绍家人','My sister is five.','我妹妹五岁。'],['🧸 一起玩','I share toys with my sister.','我和妹妹分享玩具。']]);
+D('brother','/ˈbrʌðə/','bro·ther','哥哥；弟弟','👦',[['👬 介绍家人','My brother likes football.','我哥哥喜欢足球。'],['🎮 一起玩','I play games with my brother.','我和哥哥一起玩游戏。']]);
+D('grandmother','/ˈɡrænmʌðə/','grand·mo·ther','奶奶；外婆','👵',[['👵 周末探望','I visit my grandmother on weekends.','我周末去看奶奶。'],['🍪 好吃的','Grandmother bakes cookies.','奶奶烤饼干。']]);
+D('grandma','/ˈɡrænmɑː/','grand·ma','奶奶（口语）','👵',[['📖 讲故事','Grandma tells me stories.','奶奶给我讲故事。'],['🧶 生活里','Grandma knits a sweater for me.','奶奶给我织毛衣。']]);
+D('grandfather','/ˈɡrænfɑːðə/','grand·fa·ther','爷爷；外公','👴',[['🎣 说爱好','My grandfather likes fishing.','我爷爷喜欢钓鱼。'],['🌳 散步','I walk with Grandfather in the park.','我和爷爷在公园散步。']]);
+D('grandpa','/ˈɡrænpɑː/','grand·pa','爷爷（口语）','👴',[['🍵 日常','Grandpa drinks tea every morning.','爷爷每天早上喝茶。'],['💌 想念','I miss Grandpa.','我想爷爷了。']]);
+D('family','/ˈfæməli/','fa·mi·ly','家庭','👨‍👩‍👧',[['📸 看照片','This is my family.','这是我的全家福。'],['❤️ 说爱','I love my family.','我爱我家。']]);
+
+/* —— 形容词 —— */
+D('thin','/θɪn/','thin','瘦的','🧍',[['🐵 说动物','The monkey is thin.','猴子瘦瘦的。'],['🍚 关心别人','You are thin. Eat more!','你太瘦了，多吃点！']]);
+D('fat','/fæt/','fat','胖的','🐷',[['🐷 说动物','The pig is fat.','猪胖乎乎的。'],['😄 开玩笑','The cat is getting fat.','这只猫越来越胖了。']]);
+D('tall','/tɔːl/','tall','高的','🦒',[['🦒 说动物','The giraffe is tall.','长颈鹿很高。'],['👨 说家人','My father is tall.','我爸爸很高。']]);
+D('short','/ʃɔːt/','short','矮的；短的','📏',[['🐭 说动物','The mouse is short and small.','老鼠又矮又小。'],['✏️ 说铅笔','My pencil is short now.','我的铅笔用短了。']]);
+D('long','/lɒŋ/','long','长的','🐍',[['🐍 说动物','The snake is long.','蛇长长的。'],['🦒 说特征','The giraffe has a long neck.','长颈鹿的脖子很长。']]);
+D('small','/smɔːl/','small','小的','🐜',[['🐜 说动物','The ant is small.','蚂蚁小小的。'],['🏠 说东西','My bedroom is small but clean.','我的卧室小但干净。']]);
+D('big','/bɪɡ/','big','大的','🐘',[['🐘 说动物','The elephant is big.','大象很大。'],['🍉 说水果','The watermelon is big.','西瓜很大。']]);
+D('giraffe','/dʒəˈrɑːf/','gi·raffe','长颈鹿','🦒',[['🦒 动物园','The giraffe has a long neck.','长颈鹿脖子长。'],['🌳 吃叶子','The giraffe eats leaves from tall trees.','长颈鹿吃高树上的叶子。']]);
+
+/* —— 方位与物品 —— */
+D('on','/ɒn/','on','在……上面','📖',[['📖 说位置','The book is on the desk.','书在桌子上。'],['🐱 看图说话','The cat is on the chair.','猫在椅子上。']]);
+D('in','/ɪn/','in','在……里面','📥',[['✏️ 说位置','The pencil is in the box.','铅笔在盒子里。'],['🐟 说位置','The fish is in the water.','鱼在水里。']]);
+D('under','/ˈʌndə/','un·der','在……下面','🐾',[['🐱 找东西','The cat is under the chair.','猫在椅子下面。'],['🔑 说位置','The key is under the book.','钥匙在书下面。']]);
+D('chair','/tʃeə/','chair','椅子','🪑',[['🪑 教室里','Sit on the chair, please.','请坐到椅子上。'],['🎒 说位置','My bag is under the chair.','我的书包在椅子下面。']]);
+D('desk','/desk/','desk','书桌','📚',[['📚 学习','I do homework at my desk.','我在书桌前写作业。'],['🧹 整理','Keep your desk tidy.','保持书桌整洁。']]);
+D('cap','/kæp/','cap','帽子','🧢',[['☀️ 出门','Put on your cap. It is sunny.','戴上帽子，太阳大。'],['🔍 找东西','Where is my red cap?','我的红帽子呢？']]);
+D('ball','/bɔːl/','ball','球','⚽',[['⚽ 玩耍','Let us play ball!','我们玩球吧！'],['🐶 和宠物','The dog runs after the ball.','狗追着球跑。']]);
+D('car','/kɑː/','car','小汽车','🚗',[['🚗 出门','Dad drives the car to school.','爸爸开车送我上学。'],['🧸 说玩具','I have a toy car.','我有一辆玩具汽车。']]);
+D('boat','/bəʊt/','boat','小船','⛵',[['🌊 公园玩','We row a boat on the lake.','我们在湖上划船。'],['📄 做手工','I fold a paper boat.','我折了一只纸船。']]);
+D('map','/mæp/','map','地图','🗺️',[['🗺️ 旅行前','Look at the map first.','先看地图。'],['🇨🇳 课堂上','Point to Beijing on the map.','在地图上指出北京。']]);
+D('toy','/tɔɪ/','toy','玩具','🧸',[['🧸 说玩具','My favourite toy is a robot.','我最喜欢的玩具是机器人。'],['🧹 收拾','Put away your toys.','把玩具收好。']]);
+D('box','/bɒks/','box','盒子','📦',[['📦 说位置','The toys are in the box.','玩具在盒子里。'],['🎁 收礼物','Open the box and see!','打开盒子看看！']]);
+
+/* —— 水果 —— */
+D('pear','/peə/','pear','梨','🍐',[['🍐 吃水果','The pear is sweet and juicy.','梨又甜又多汁。'],['🛒 买东西','I buy three pears.','我买了三个梨。']]);
+D('apple','/ˈæpl/','ap·ple','苹果','🍎',[['🍎 说健康','An apple a day keeps the doctor away.','一天一苹果，医生远离我。'],['🎁 送人','I give a red apple to my teacher.','我把红苹果送给老师。']]);
+D('banana','/bəˈnɑːnə/','ba·na·na','香蕉','🍌',[['🍽️ 饿了想吃东西时','I am hungry. Can I have a banana?','我饿了，能吃一根香蕉吗？'],['🐒 说喜欢什么','The little monkey loves bananas.','小猴子最爱香蕉。'],['🛒 在超市','Mum buys six bananas at the shop.','妈妈在商店买了六根香蕉。']]);
+D('watermelon','/ˈwɔːtəmelən/','wa·ter·me·lon','西瓜','🍉',[['🍉 夏天','We eat watermelon in summer.','夏天我们吃西瓜。'],['🔪 切水果','Dad cuts the watermelon.','爸爸切西瓜。']]);
+D('strawberry','/ˈstrɔːbəri/','straw·ber·ry','草莓','🍓',[['🍓 说喜欢','Strawberries are my favourite.','草莓是我的最爱。'],['🧺 去采摘','We pick strawberries on the farm.','我们在农场摘草莓。']]);
+D('grape','/ɡreɪp/','grape','葡萄','🍇',[['🍇 吃水果','The grapes are purple and sweet.','葡萄又紫又甜。'],['🦊 伊索寓言','The fox says the grapes are sour.','狐狸说葡萄是酸的。']]);
+D('fruit','/fruːt/','fruit','水果','🍇',[['🍎 说健康','Eat fruit every day.','每天都要吃水果。'],['🥗 说种类','Apples and bananas are fruit.','苹果和香蕉都是水果。']]);
+
+/* —— 数字 11-20 —— */
+D('eleven','/ɪˈlevn/','e·le·ven','十一','🔢',[['🕚 看时间',"It's eleven o'clock.",'十一点了。'],['🧮 数数','Count to eleven.','数到十一。']]);
+D('twelve','/twelv/','twelve','十二','🔢',[['🍚 中午','Lunch is at twelve.','十二点吃午饭。'],['🎂 说年龄','She is twelve years old.','她十二岁了。']]);
+D('thirteen','/ˌθɜːˈtiːn/','thir·teen','十三','🔢',[['🎂 说年龄','My cousin is thirteen.','我表哥十三岁。'],['🐟 数数','Thirteen little fish.','十三条小鱼。']]);
+D('fourteen','/ˌfɔːˈtiːn/','four·teen','十四','🔢',[['📅 说日期','My birthday is on May 14th.','我的生日是5月14日。'],['🧮 数学','Seven plus seven is fourteen.','七加七等于十四。']]);
+D('fifteen','/ˌfɪfˈtiːn/','fif·teen','十五','🔢',[['⏰ 放学','School is over at four fifteen.','四点十五放学。'],['🎈 数数','Fifteen balloons.','十五个气球。']]);
+D('sixteen','/ˌsɪksˈtiːn/','six·teen','十六','🔢',[['🧮 数学','Eight plus eight is sixteen.','八加八等于十六。'],['🎂 说年龄','Her sister is sixteen.','她姐姐十六岁。']]);
+D('seventeen','/ˌsevnˈtiːn/','se·ven·teen','十七','🔢',[['🧮 数数','Count from ten to seventeen.','从十数到十七。'],['📚 翻书','Open page seventeen.','打开第17页。']]);
+D('eighteen','/ˌeɪˈtiːn/','eigh·teen','十八','🔢',[['🧮 数学','Nine plus nine is eighteen.','九加九等于十八。'],['🎓 说长大','You are an adult at eighteen.','十八岁就是大人了。']]);
+D('nineteen','/ˌnaɪnˈtiːn/','nine·teen','十九','🔢',[['🧮 数学','Twenty minus one is nineteen.','二十减一等于十九。'],['🐤 数数','Nineteen little chicks.','十九只小鸡。']]);
+D('twenty','/ˈtwenti/','twen·ty','二十','🔢',[['🧮 数学','Ten plus ten is twenty.','十加十等于二十。'],['🏫 说数量','There are twenty students in my class.','我们班有二十个学生。']]);
+
+/* —— 国家与身份 —— */
+D('China','/ˈtʃaɪnə/','Chi·na','中国','🇨🇳',[['🇨🇳 说自己','I am from China.','我来自中国。'],['🐼 说国宝','Pandas live in China.','熊猫生活在中国。']]);
+D('UK','/ˌjuːˈkeɪ/','U·K','英国','🇬🇧',[['🌍 说国家','London is in the UK.','伦敦在英国。'],['✈️ 说家人','My aunt lives in the UK.','我阿姨住在英国。']]);
+D('USA','/ˌjuːesˈeɪ/','U·S·A','美国','🇺🇸',[['🗽 说国家','New York is in the USA.','纽约在美国。'],['🍔 说食物','Hamburgers are from the USA.','汉堡包来自美国。']]);
+D('Canada','/ˈkænədə/','Ca·na·da','加拿大','🇨🇦',[['🍁 说国家','Canada is famous for maple leaves.','加拿大的枫叶很有名。'],['👋 介绍朋友','My friend is from Canada.','我朋友来自加拿大。']]);
+D('he','/hiː/','he','他','👦',[['👦 介绍','He is my brother.','他是我哥哥。'],['🏀 说他做的事','He likes basketball.','他喜欢篮球。']]);
+D('she','/ʃiː/','she','她','👧',[['👧 介绍','She is my sister.','她是我妹妹。'],['📚 说她做的事','She likes reading.','她喜欢看书。']]);
+D('student','/ˈstjuːdnt/','stu·dent','学生','🎒',[['🎒 说身份','I am a student.','我是一名学生。'],['🏫 在学校','The students are reading.','学生们在读书。']]);
+D('teacher','/ˈtiːtʃə/','tea·cher','老师','👩‍🏫',[['👩‍🏫 在学校','My teacher is kind.','我的老师很和蔼。'],['🙋 课堂上','Ask the teacher a question.','问老师一个问题。']]);
+
+/* —— 常用补充 —— */
+D('hungry','/ˈhʌŋɡri/','hun·gry','饿的','😋',[['🍞 肚子饿时','I am hungry. I want some bread.','我饿了，想吃面包。'],['🕛 放学回家','I am so hungry after school.','放学后我好饿。']]);
+D('thirsty','/ˈθɜːsti/','thirs·ty','渴的','🥵',[['🥤 口渴时','I am thirsty. I want some water.','我渴了，想喝水。'],['🏃 运动后','Running makes me thirsty.','跑步让我口渴。']]);
+D('bedroom','/ˈbedruːm/','bed·room','卧室','🛏️',[['🌙 睡觉前','I read a storybook in my bedroom.','我在卧室里读故事书。'],['🧹 做家务','Clean your bedroom, please.','请打扫你的卧室。']]);
+D('school','/skuːl/','school','学校','🏫',[['🎒 早上','I go to school at eight.','我八点上学。'],['🏫 说学校','My school is big and nice.','我的学校又大又漂亮。']]);
+D('friend','/frend/','friend','朋友','👫',[['🤝 介绍','This is my friend, Amy.','这是我的朋友艾米。'],['🎮 一起玩','I play with my friends.','我和朋友们一起玩。']]);
+
+/* —— Unit 1 新学期 —— */
+D('new','/njuː/','new','新的','🆕',[['🎒 开学','I have a new bag.','我有一个新书包。'],['👋 介绍朋友','This is my new friend.','这是我的新朋友。']]);
+D('classmate','/ˈklɑːsmeɪt/','class·mate','同班同学','🧑‍🤝‍🧑',[['🏫 介绍同学','Amy is my classmate.','艾米是我的同班同学。'],['🤝 说相处','I help my classmates.','我帮助我的同学。']]);
+D('play sports','/pleɪ spɔːts/','play sports','做运动','⚽',[['🏃 放学后','We play sports after school.','放学后我们做运动。'],['💪 说爱好','I like to play sports.','我喜欢做运动。']]);
+D('read','/riːd/','read','读；看书','📖',[['🌙 睡前','I read a story before bed.','我睡前读故事。'],['📚 课堂上','Read the words aloud.','大声读单词。']]);
+D('study','/ˈstʌdi/','stu·dy','学习','✏️',[['📚 说习惯','I study English every day.','我每天学英语。'],['🏫 在学校','We study hard at school.','我们在学校努力学习。']]);
+D('hard','/hɑːd/','hard','努力地','💪',[['📚 说学习','Study hard and you will do well.','努力学习就会有好成绩。'],['🏃 比赛','He runs hard to win.','他拼命跑想赢。']]);
+D('goal','/ɡəʊl/','goal','目标','🎯',[['🎯 新学期','My goal is to read more books.','我的目标是多读书。'],['⚽ 踢球','He kicks the ball into the goal!','他把球踢进了球门！']]);
+D('want','/wɒnt/','want','想要','🙋',[['🍦 说想要','I want some ice cream.','我想要冰淇淋。'],['🎁 许愿','I want a new bike.','我想要一辆新自行车。']]);
+D('plan','/plæn/','plan','计划','📅',[['📅 开学','I make a plan for the new term.','我为新学期做计划。'],['🌞 周末','What is your plan for Sunday?','你周日的计划是什么？']]);
+D('follow','/ˈfɒləʊ/','fol·low','遵守；跟随','👣',[['🚦 说规则','Follow the rules, please.','请遵守规则。'],['🐤 排队','The chicks follow their mother.','小鸡跟着妈妈走。']]);
+D('rabbit','/ˈræbɪt/','rab·bit','兔子','🐰',[['🐰 说动物','The rabbit has long ears.','兔子耳朵长。'],['🥕 说食物','The rabbit likes carrots.','兔子爱吃胡萝卜。']]);
+D('walk','/wɔːk/','walk','走路','🚶',[['🚶 上学','I walk to school every day.','我每天走路上学。'],['🌳 饭后','We walk in the park after dinner.','晚饭后我们在公园散步。']]);
+D('umbrella','/ʌmˈbrelə/','um·brel·la','雨伞','☂️',[['🌧️ 下雨天','Take your umbrella. It is raining.','带上伞，下雨了。'],['☂️ 借东西','Can I share your umbrella?','我能和你共一把伞吗？']]);
+D("What's wrong?",'','what\'s wrong','怎么了？','🤕',[["🤕 关心别人","What's wrong? You look sad.",'怎么了？你看起来难过。'],["😢 同学哭了","What's wrong? Can I help?",'怎么了？需要帮忙吗？']]);
+D("It doesn't matter.",'',"it doesn't matter",'没关系','🤗',[["🤗 安慰别人","It doesn't matter. Try again!",'没关系，再试一次！'],["😅 别人道歉时","—Sorry! —It doesn't matter.",'——对不起！——没关系。']]);
+
+/* —— Unit 2 特长 —— */
+D('be good at','','be good at','擅长','🌟',[['🏀 说特长','I am good at basketball.','我擅长篮球。'],['🎨 夸别人','She is good at drawing.','她擅长画画。']]);
+D('draw','/drɔː/','draw','画画','🎨',[['🎨 说爱好','I like to draw animals.','我喜欢画动物。'],['✏️ 课堂上','Draw a house on the paper.','在纸上画一座房子。']]);
+D('tell a story','','tell a sto·ry','讲故事','📖',[['🌙 睡前','Grandma tells a story every night.','奶奶每晚讲故事。'],['🎤 班级活动','Who can tell a story?','谁会讲故事？']]);
+D('dance','/dɑːns/','dance','跳舞','💃',[['💃 说爱好','She can dance very well.','她跳舞跳得很好。'],['🎉 派对','We sing and dance at the party.','我们在派对上唱歌跳舞。']]);
+D('sing','/sɪŋ/','sing','唱歌','🎤',[['🎤 说爱好','I sing in the music club.','我在音乐社团唱歌。'],['🐦 早上','Birds sing in the morning.','小鸟早上唱歌。']]);
+D('use the computer','','use the com·pu·ter','用电脑','💻',[['💻 学习','I use the computer to learn English.','我用电脑学英语。'],['⏰ 说约定','I use the computer for 30 minutes.','我用电脑30分钟。']]);
+D('player','/ˈpleɪə/','play·er','运动员','🏀',[['🏀 说偶像','Yao Ming is a great player.','姚明是了不起的运动员。'],['⚽ 比赛','The players run fast.','运动员们跑得很快。']]);
+D('run','/rʌn/','run','跑步','🏃',[['🏃 体育课','We run on the playground.','我们在操场上跑步。'],['🐕 说动物','The dog runs fast.','狗跑得很快。']]);
+D('cool','/kuːl/','cool','酷的；凉爽的','😎',[['😎 夸人','Your new bike is so cool!','你的新自行车太酷了！'],['🍂 秋天','The autumn wind is cool.','秋风很凉爽。']]);
+D('be proud of','','be proud of','为……自豪','🏅',[['🏅 得奖','I am proud of my class.','我为我的班级自豪。'],['👨 家人','Dad is proud of me.','爸爸为我骄傲。']]);
+D('fly','/flaɪ/','fly','飞；放风筝','🪁',[['🪁 春天','We fly kites in spring.','我们春天放风筝。'],['🐦 说鸟','Birds fly high in the sky.','鸟儿在天上高飞。']]);
+D('jump','/dʒʌmp/','jump','跳','🦘',[['🦘 说动作','The rabbit can jump high.','兔子跳得高。'],['🤸 体育课','Jump ten times, please.','请跳十下。']]);
+
+/* —— Unit 3 花园种植 —— */
+D('garden','/ˈɡɑːdn/','gar·den','花园','🌷',[['🌷 说地方','Our garden is beautiful.','我们的花园很美。'],['🐝 看花','There are many flowers in the garden.','花园里有很多花。']]);
+D('welcome','/ˈwelkəm/','wel·come','欢迎','👏',[['👏 迎接客人','Welcome to my home!','欢迎来我家！'],['🏫 开学','Welcome back to school!','欢迎回到学校！']]);
+D('open','/ˈəʊpən/','o·pen','打开','📖',[['📖 上课','Open your books, please.','请打开书。'],['🚪 进门','Open the door, please.','请开门。']]);
+D('close','/kləʊz/','close','关上','🚪',[['🚪 出门','Close the door, please.','请关门。'],['📕 下课','Close your books.','合上书。']]);
+D('flower','/ˈflaʊə/','flow·er','花','🌸',[['🌸 春天','The flowers are beautiful.','花很美。'],['💐 送人','I give flowers to my mum.','我送花给妈妈。']]);
+D('vegetable','/ˈvedʒtəbl/','ve·ge·ta·ble','蔬菜','🥬',[['🥬 吃饭','Eat more vegetables.','多吃蔬菜。'],['🥕 买菜','Mum buys fresh vegetables.','妈妈买新鲜蔬菜。']]);
+D('plant','/plɑːnt/','plant','植物；种植','🌱',[['🌱 春天','We plant trees in spring.','我们春天种树。'],['🪴 家里','My grandma loves her plants.','我奶奶爱她的植物。']]);
+D('beautiful','/ˈbjuːtɪfl/','beau·ti·ful','美丽的','🌈',[['🌸 夸花','What a beautiful flower!','多美的花呀！'],['🌅 夸风景','The park is beautiful.','公园很美。']]);
+D('see','/siː/','see','看见','👀',[['👀 说看到','I see a bird in the tree.','我看见树上有只鸟。'],['🌈 雨后','Look! I see a rainbow.','看！我看见彩虹了。']]);
+D('orange tree','','or·ange tree','橙子树','🍊',[['🍊 果园','The orange tree is full of fruit.','橙子树结满果子。'],['🌳 爷爷家','Grandpa has an orange tree.','爷爷有一棵橙子树。']]);
+D('tomato','/təˈmɑːtəʊ/','to·ma·to','西红柿','🍅',[['🍅 菜园','The tomatoes are red.','西红柿红了。'],['🥗 做饭','I like tomato soup.','我喜欢西红柿汤。']]);
+D('carrot','/ˈkærət/','car·rot','胡萝卜','🥕',[['🥕 说兔子','Rabbits love carrots.','兔子爱吃胡萝卜。'],['🍲 吃饭','Carrots are good for your eyes.','胡萝卜对眼睛好。']]);
+D('leaf','/liːf/','leaf','叶子','🍃',[['🍃 秋天','The leaves turn yellow in autumn.','秋天叶子变黄。'],['🍵 说茶叶','Tea is made from leaves.','茶是叶子做的。']]);
+D('grow','/ɡrəʊ/','grow','生长；种植','🌱',[['🌱 观察','The seeds grow into plants.','种子长成植物。'],['👶 说长大','I grow taller every year.','我每年都在长高。']]);
+D('tea','/tiː/','tea','茶','🍵',[['🍵 说爷爷','Grandpa drinks tea every day.','爷爷每天喝茶。'],['☕ 招待客人','Would you like some tea?','要喝点茶吗？']]);
+
+/* —— Unit 4 水 —— */
+D('find','/faɪnd/','find','找到','🔍',[['🔍 找东西','I cannot find my pencil.','我找不到铅笔了。'],['🗺️ 问路','We find the way to the zoo.','我们找到了去动物园的路。']]);
+D('river','/ˈrɪvə/','riv·er','河流','🏞️',[['🏞️ 说家乡','There is a river near my home.','我家附近有条河。'],['🐟 看鱼','Fish swim in the river.','鱼在河里游。']]);
+D('lake','/leɪk/','lake','湖','🦆',[['🦆 公园','Ducks swim on the lake.','鸭子在湖上游泳。'],['🚣 周末','We row a boat on the lake.','我们在湖上划船。']]);
+D('sea','/siː/','sea','大海','🌊',[['🌊 旅行','I swim in the sea in summer.','夏天我在海里游泳。'],['🐚 海边','We pick shells by the sea.','我们在海边捡贝壳。']]);
+D('water vapour','','wa·ter va·pour','水蒸气','♨️',[['♨️ 科学课','Steam is water vapour.','蒸汽就是水蒸气。'],['🍲 厨房','Water vapour comes from the hot pot.','热水锅冒出水蒸气。']]);
+D('from','/frɒm/','from','从……来','📍',[['👋 介绍','I am from China.','我来自中国。'],['🎁 收礼物','This gift is from my grandma.','这个礼物是奶奶送的。']]);
+D('little by little','','lit·tle by lit·tle','一点一点地','🐌',[['🌱 种花','The plant grows little by little.','植物一点一点地长大。'],['📚 学习','Learn little by little every day.','每天学一点，积少成多。']]);
+D('become','/bɪˈkʌm/','be·come','变成','🦋',[['🦋 说自然','The caterpillar becomes a butterfly.','毛毛虫变成蝴蝶。'],['💧 科学课','Water becomes ice when it is cold.','水冷了会变成冰。']]);
+D('cloud','/klaʊd/','cloud','云','☁️',[['☁️ 看天','The clouds are white.','云是白色的。'],['🌧️ 要下雨','Black clouds! It is going to rain.','乌云来了，要下雨了。']]);
+D('rain','/reɪn/','rain','雨','🌧️',[['🌧️ 说天气','The rain falls on the flowers.','雨落在花儿上。'],['☂️ 出门','Take an umbrella. It is raining.','带伞，下雨了。']]);
+D('snow','/snəʊ/','snow','雪','❄️',[['❄️ 冬天','Snow is white and cold.','雪又白又冷。'],['⛄ 玩耍','We make a snowman in the snow.','我们在雪地里堆雪人。']]);
+D('ice','/aɪs/','ice','冰','🧊',[['🧊 冬天','The lake turns to ice in winter.','冬天湖面结冰。'],['🥤 饮料','I want some ice in my juice.','我想在果汁里加冰。']]);
+D('water drop','','wa·ter drop','水滴','💧',[['💧 雨后','Water drops are on the leaves.','叶子上有水珠。'],['🚿 说节约','Save every water drop.','节约每一滴水。']]);
+D('where','/weə/','where','在哪里','❓',[['🔍 找东西','Where is my bag?','我的书包在哪里？'],['🗺️ 问路','Where is the library?','图书馆在哪里？']]);
+D('cold','/kəʊld/','cold','冷的','🥶',[['🥶 冬天','It is cold in winter.','冬天很冷。'],['🧊 说水','The ice water is cold.','冰水很凉。']]);
+D('when','/wen/','when','什么时候','⏰',[['⏰ 问时间','When do you get up?','你什么时候起床？'],['🎂 问生日','When is your birthday?','你的生日是什么时候？']]);
+D('hot','/hɒt/','hot','热的','🔥',[['🔥 夏天','It is hot in summer.','夏天很热。'],['🍜 吃东西','The soup is hot. Be careful.','汤很烫，小心。']]);
+
+/* —— Unit 5 家务 —— */
+D('help','/help/','help','帮助','🤝',[['🤝 说帮忙','I help my mum at home.','我在家帮妈妈。'],['🆘 求助','Can you help me, please?','请问你能帮我吗？']]);
+D('chore','/tʃɔː/','chore','家务活','🧹',[['🧹 说家务','I do chores on weekends.','我周末做家务。'],['🍽️ 饭后','Doing chores is fun!','做家务很有趣！']]);
+D('busy','/ˈbɪzi/','bus·y','忙碌的','🐝',[['🐝 说妈妈','Mum is busy in the kitchen.','妈妈在厨房里忙。'],['📚 说日子','Monday is a busy day.','周一很忙。']]);
+D('cook','/kʊk/','cook','做饭','👨‍🍳',[['👨‍🍳 说爸爸','Dad cooks dinner for us.','爸爸给我们做晚饭。'],['🍳 帮忙','I help Mum cook.','我帮妈妈做饭。']]);
+D('do the dishes','','do the di·shes','洗碗','🍽️',[['🍽️ 饭后','I do the dishes after dinner.','晚饭后我洗碗。'],['🧽 说家务','Doing the dishes is my chore.','洗碗是我的家务。']]);
+D('clean the table','','clean the ta·ble','擦桌子','🧽',[['🧽 饭后','Clean the table after meals.','饭后擦桌子。'],['✨ 做家务','I clean the table every day.','我每天擦桌子。']]);
+D('walk the dog','','walk the dog','遛狗','🐕',[['🐕 早上','I walk the dog every morning.','我每天早晨遛狗。'],['🌳 公园','We walk the dog in the park.','我们在公园遛狗。']]);
+D('young','/jʌŋ/','young','年轻的','👶',[['👶 说年龄','My little brother is young.','我弟弟很小。'],['🐣 说动物','The young birds cannot fly.','幼鸟不会飞。']]);
+D('give your seat','','give your seat','让座','💺',[['🚌 公交车上','I give my seat to an old grandma.','我在公交车上给老奶奶让座。'],['💗 做好事','Giving your seat is kind.','让座是善良的表现。']]);
+D('excuse me','','ex·cuse me','打扰一下','🙋',[['🙋 问路','Excuse me, where is the museum?','打扰一下，博物馆在哪里？'],['🚶 借过','Excuse me, may I pass?','打扰一下，借过。']]);
+D('old','/əʊld/','old','年老的；旧的','👴',[['👴 说爷爷','My grandpa is old but strong.','我爷爷年纪大但身体棒。'],['📕 说东西','This book is old.','这本书很旧。']]);
+D('clothes','/kləʊðz/','clothes','衣服','👕',[['👕 早上','I put on my clothes.','我穿上衣服。'],['🧺 做家务','I help fold the clothes.','我帮忙叠衣服。']]);
+D('drink water','','drink wa·ter','喝水','🥛',[['💧 运动后','Drink water after running.','跑步后喝水。'],['🌞 天热','Drink more water on hot days.','天热多喝水。']]);
+D('fall','/fɔːl/','fall','落下；摔倒','🍂',[['🍂 秋天','Leaves fall from the trees.','树叶落下来。'],['🤕 提醒','Be careful! Do not fall.','小心！别摔倒。']]);
+D('drop','/drɒp/','drop','掉落','💧',[['🍦 哎呀','Oops! I drop my ice cream.','哎呀！我冰淇淋掉了。'],['💧 说水滴','A drop of water falls.','一滴水落下。']]);
+
+/* —— Unit 6 情绪 —— */
+D('feel','/fiːl/','feel','感觉','🙂',[['🙂 说感受','I feel happy today.','我今天感觉开心。'],['🤒 说身体','I feel tired.','我觉得累。']]);
+D('sometimes','/ˈsʌmtaɪmz/','some·times','有时候','🌗',[['🌗 说习惯','I sometimes read in bed.','我有时在床上看书。'],['🌧️ 说天气','It is sometimes rainy in spring.','春天有时下雨。']]);
+D('happy','/ˈhæpi/','hap·py','开心的','😊',[['😊 说心情','I am happy on my birthday.','生日那天我很开心。'],['🎉 祝福','Happy New Year!','新年快乐！']]);
+D('sad','/sæd/','sad','难过的','😢',[['😢 说心情','I am sad when I lose my toy.','玩具丢了我会难过。'],['🎬 看电影','The film is so sad.','这部电影很伤感。']]);
+D('good','/ɡʊd/','good','好的','👍',[['👍 夸人','Good job!','做得好！'],['📚 说成绩','I get good grades.','我成绩很好。']]);
+D('bad','/bæd/','bad','坏的','👎',[['👎 说天气','The weather is bad today.','今天天气糟。'],['🦷 说习惯','Too much candy is bad for teeth.','糖吃太多对牙齿不好。']]);
+D('excited','/ɪkˈsaɪtɪd/','ex·ci·ted','兴奋的','🤩',[['🤩 出去玩前','I am excited about the zoo trip.','去动物园我好兴奋。'],['🎁 收礼物','She is excited to open the gift.','她兴奋地拆礼物。']]);
+D('but','/bʌt/','but','但是','↩️',[['↩️ 说转折','I am small but strong.','我小但是强壮。'],['📚 造句','I like apples, but not bananas.','我喜欢苹果，但不喜欢香蕉。']]);
+D('scared','/skeəd/','scared','害怕的','😨',[['😨 说害怕','I am scared of the dark.','我怕黑。'],['🎢 游乐场','The roller coaster makes me scared.','过山车让我害怕。']]);
+D('tired','/taɪəd/','tired','累的','😮‍💨',[['😮‍💨 运动后','I am tired after running.','跑步后我很累。'],['📚 学习后','I feel tired after homework.','写完作业我觉得累。']]);
+D('unhappy','/ʌnˈhæpi/','un·hap·py','不开心的','🙁',[['🙁 说心情','He is unhappy today.','他今天不开心。'],['🌧️ 说原因','I am unhappy about the rain.','下雨让我不开心。']]);
+D('What a pity!','','what a pi·ty','真可惜','😔',[['😔 错过活动','—The zoo is closed. —What a pity!','——动物园关门了。——真可惜！'],['😢 比赛输了','What a pity! We lost the game.','真可惜！我们输了比赛。']]);
+
+/* —— Unit 7 职业 —— */
+D('job','/dʒɒb/','job','工作','💼',[['💼 说爸爸','My dad has a busy job.','我爸爸工作很忙。'],['🔮 说长大','What job do you want?','你想做什么工作？']]);
+D('brave','/breɪv/','brave','勇敢的','🦁',[['🦁 夸人','The firefighter is brave.','消防员很勇敢。'],['💉 打针','Be brave! It does not hurt.','勇敢点！不疼。']]);
+D('driver','/ˈdraɪvə/','driv·er','司机','🚗',[['🚗 说职业','My uncle is a bus driver.','我叔叔是公交车司机。'],['🚌 说谢谢','Say thank you to the driver.','跟司机说谢谢。']]);
+D('careful','/ˈkeəfl/','care·ful','小心的','⚠️',[['⚠️ 过马路','Be careful when you cross the road.','过马路要小心。'],['🍜 端热汤','Be careful! The soup is hot.','小心！汤很烫。']]);
+D('police officer','','po·lice of·fi·cer','警察','👮',[['👮 说职业','A police officer helps people.','警察帮助人们。'],['🚓 迷路时','Ask a police officer for help.','找警察帮忙。']]);
+D('dream','/driːm/','dream','梦想','💭',[['💭 说梦想','My dream is to be a doctor.','我的梦想是当医生。'],['😴 睡觉','I had a sweet dream.','我做了个美梦。']]);
+D('engineer','/ˌendʒɪˈnɪə/','en·gi·neer','工程师','👷',[['👷 说职业','An engineer builds bridges.','工程师建桥梁。'],['🔧 说爸爸','My dad is an engineer.','我爸爸是工程师。']]);
+D('writer','/ˈraɪtə/','wri·ter','作家','✍️',[['✍️ 说职业','A writer writes books.','作家写书。'],['📚 说梦想','I want to be a writer.','我想当作家。']]);
+D('doctor','/ˈdɒktə/','doc·tor','医生','👨‍⚕️',[['👨‍⚕️ 说职业','A doctor helps sick people.','医生帮助病人。'],['🏥 生病时','Go to see a doctor.','去看医生。']]);
+D('chef','/ʃef/','chef','厨师','👨‍🍳',[['👨‍🍳 说职业','The chef cooks yummy food.','厨师做美味的食物。'],['🍰 说梦想','I want to be a chef.','我想当厨师。']]);
+D('astronaut','/ˈæstrənɔːt/','as·tro·naut','宇航员','👨‍🚀',[['👨‍🚀 说梦想','I want to be an astronaut.','我想当宇航员。'],['🚀 说太空','The astronaut flies to space.','宇航员飞向太空。']]);
+D('spaceship','/ˈspeɪsʃɪp/','space·ship','宇宙飞船','🚀',[['🚀 说太空','The spaceship goes to the moon.','宇宙飞船飞向月球。'],['🛸 看动画','The spaceship is so fast!','飞船好快！']]);
+D('difficult','/ˈdɪfɪkəlt/','dif·fi·cult','困难的','🧗',[['🧗 说作业','This question is difficult.','这道题很难。'],['💪 鼓励自己','It is difficult, but I can try.','很难，但我可以试试。']]);
+D('What about you?','','what a·bout you','你呢','🤔',[['🤔 反问别人','I like apples. What about you?','我喜欢苹果，你呢？'],['💬 聊天','I am fine. What about you?','我很好，你呢？']]);
+
+/* —— Unit 8 问路 —— */
+D('library','/ˈlaɪbrəri/','li·brar·y','图书馆','📚',[['📚 借书','I borrow books from the library.','我从图书馆借书。'],['🤫 说安静','Be quiet in the library.','在图书馆要安静。']]);
+D('there','/ðeə/','there','那里','👉',[['👉 指路','The museum is over there.','博物馆在那边。'],['📍 到达','We are there!','我们到啦！']]);
+D('find the way','','find the way','找到路','🗺️',[['🗺️ 看地图','Let me find the way on the map.','我在地图上找路。'],['🧭 迷路后','Dad helps us find the way.','爸爸帮我们找到路。']]);
+D('parent','/ˈpeərənt/','pa·rent','父母','👨‍👩‍👧',[['👨‍👩‍👧 学校','My parents come to the school meeting.','我父母来开家长会。'],['🏠 说家人','I love my parents.','我爱我的父母。']]);
+D('get to','','get to','到达','🏁',[['🏁 说到达','We get to the zoo at nine.','我们九点到动物园。'],['🚌 问路','How do I get to the library?','请问图书馆怎么走？']]);
+D('walk along','','walk a·long','沿着……走','🚶',[['🚶 指路','Walk along this road.','沿着这条路走。'],['🌊 散步','We walk along the river.','我们沿着河边散步。']]);
+D('road','/rəʊd/','road','马路','🛣️',[['🛣️ 过马路','Look both ways before you cross the road.','过马路前要左右看。'],['🚗 说交通','The road is busy in the morning.','早上马路很堵。']]);
+D('left','/left/','left','左','⬅️',[['⬅️ 指路','Turn left at the corner.','在拐角左转。'],['✋ 说方向','Raise your left hand.','举起你的左手。']]);
+D('right','/raɪt/','right','右；对的','➡️',[['➡️ 指路','Turn right at the library.','在图书馆右转。'],['✅ 答题','Your answer is right!','你的答案是对的！']]);
+D('ask … for help','','ask for help','向……求助','🙋',[['🙋 迷路时','Ask a police officer for help.','向警察求助。'],['📚 学习上','Ask the teacher for help.','向老师求助。']]);
+D('museum','/mjuːˈziːəm/','mu·se·um','博物馆','🏛️',[['🏛️ 周末','We visit the museum on Sunday.','我们周日参观博物馆。'],['🦕 说展品','There are dinosaur bones in the museum.','博物馆里有恐龙化石。']]);
+D('stay','/steɪ/','stay','待；停留','🏠',[['🏠 下雨天','Stay at home when it rains.','下雨就待在家。'],['😊 做客','Stay for dinner, please.','请留下吃晚饭吧。']]);
+D('wait for','','wait for','等待','⏳',[['⏳ 等人','Wait for me, please!','请等等我！'],['🚌 车站','We wait for the bus.','我们等公交车。']]);
+D('phone','/fəʊn/','phone','电话','📱',[['📱 打电话','I call Grandma on the phone.','我用手机给奶奶打电话。'],['🆘 求助','Call for help on the phone.','用电话求助。']]);
+D('lost','/lɒst/','lost','迷路的','😟',[['😟 迷路','I am lost. Can you help me?','我迷路了，能帮帮我吗？'],['🐱 寻物','My cat is lost.','我的猫丢了。']]);
+D('call','/kɔːl/','call','打电话','📞',[['📞 说打电话','Call me when you get home.','到家给我打电话。'],['🆘 求助','Call 120 when someone is sick.','有人生病打120。']]);
+D('Here we are.','','here we are','我们到了','📍',[['📍 到达目的地','Here we are! The zoo!','我们到啦！动物园！'],['🏠 到家','Here we are, home again.','我们到家啦。']]);
+
+/* —— Unit 9 节日 —— */
+D('special days','','spe·cial days','特别的日子','🎉',[['🎉 说节日','Festivals are special days.','节日是特别的日子。'],['🎂 说生日','My birthday is a special day.','我的生日是个特别的日子。']]);
+D('miss','/mɪs/','miss','想念','💌',[['💌 说想念','I miss my grandma.','我想念奶奶。'],['📞 打电话','I miss you, Mum!','妈妈，我想你！']]);
+D('get together','','get to·ge·ther','团聚','👨‍👩‍👧‍👦',[['👨‍👩‍👧‍👦 过节','Families get together at festivals.','过节时家人团聚。'],['🍚 年夜饭','We get together for a big dinner.','我们聚在一起吃大餐。']]);
+D('the Double Ninth Festival','','the Dou·ble Ninth Fes·ti·val','重阳节','🏔️',[['🏔️ 说习俗','We climb mountains on the Double Ninth Festival.','重阳节我们登高。'],['👵 敬老','It is a day for grandparents.','这是敬老的节日。']]);
+D('celebrate','/ˈselɪbreɪt/','cel·e·brate','庆祝','🎊',[['🎊 过节','We celebrate Chinese New Year.','我们庆祝春节。'],['🎂 生日','We celebrate my birthday with a cake.','我们用蛋糕庆祝我的生日。']]);
+D('climb the mountain','','climb the moun·tain','爬山','⛰️',[['⛰️ 重阳节','We climb the mountain in autumn.','秋天我们去爬山。'],['🥾 周末','Dad climbs the mountain with me.','爸爸带我去爬山。']]);
+D('Chinese New Year','','Chi·nese New Year','中国新年','🧧',[['🧧 说春节','Chinese New Year is in winter.','春节在冬天。'],['🧨 说习俗','We get red packets at Chinese New Year.','春节我们收红包。']]);
+D('the Spring Festival','','the Spring Fes·ti·val','春节','🏮',[['🏮 说春节','The Spring Festival is coming!','春节快到了！'],['👨‍👩‍👧‍👦 团圆','Families get together at the Spring Festival.','春节家人团聚。']]);
+D('visit','/ˈvɪzɪt/','vis·it','拜访；参观','🏠',[['🏠 过节','We visit grandparents at the festival.','过节我们去看望爷爷奶奶。'],['🏛️ 周末','We visit the museum.','我们参观博物馆。']]);
+D('the Lantern Festival','','the Lan·tern Fes·ti·val','元宵节','🏮',[['🏮 说元宵节','We watch lanterns at the Lantern Festival.','元宵节我们看花灯。'],['🥣 吃汤圆','We eat sweet rice balls.','我们吃汤圆。']]);
+D('holiday','/ˈhɒlədeɪ/','hol·i·day','假期','🏖️',[['🏖️ 说假期','Summer holiday is coming!','暑假快到了！'],['✈️ 旅行','We go to the beach on holiday.','假期我们去海边。']]);
+D('dragon dance','','dra·gon dance','舞龙','🐉',[['🐉 过节','We watch the dragon dance.','我们看舞龙。'],['🧨 庙会','The dragon dance is exciting!','舞龙真精彩！']]);
+D('Long time no see.','','long time no see','好久不见','👋',[['👋 重逢','Long time no see! How are you?','好久不见！你好吗？'],['🏫 开学','Long time no see, my friends!','好久不见，同学们！']]);
+D("It's great to see you again.",'',"it's great to see you a·gain",'很高兴再次见到你','😄',[["😄 重逢","It's great to see you again!",'很高兴再次见到你！'],["🏫 开学","It's great to see you again, class!",'同学们，很高兴再见到你们！']]);
+D('Very well.','','ve·ry well','很好','👌',[['👌 回应问候','—How are you? —Very well, thanks.','——你好吗？——很好，谢谢。'],['✅ 说答应','Very well, let us begin.','好，我们开始吧。']]);
+
+/* —— Unit 10 食物 —— */
+D('food','/fuːd/','food','食物','🍜',[['🍜 说食物','Chinese food is yummy.','中国食物很美味。'],['🌍 说世界','I like food from the world.','我喜欢世界各地的美食。']]);
+D('world','/wɜːld/','world','世界','🌍',[['🌍 说世界','There are many countries in the world.','世界上有很多国家。'],['✈️ 说梦想','I want to travel around the world.','我想环游世界。']]);
+D('famous','/ˈfeɪməs/','fa·mous','著名的','🌟',[['🌟 说地方','Beijing is famous for the Great Wall.','北京以长城闻名。'],['🍜 说美食','Sichuan is famous for hot pot.','四川以火锅闻名。']]);
+D('noodle','/ˈnuːdl/','noo·dle','面条','🍜',[['🍜 吃饭','I have noodles for lunch.','我午饭吃面条。'],['🎂 过生日','Birthday noodles are long.','生日面长长的。']]);
+D('pizza','/ˈpiːtsə/','piz·za','披萨','🍕',[['🍕 说美食','Pizza is from Italy.','披萨来自意大利。'],['🎉 派对','We eat pizza at the party.','派对上我们吃披萨。']]);
+D('sandwich','/ˈsænwɪtʃ/','sand·wich','三明治','🥪',[['🥪 野餐','I bring sandwiches for the picnic.','野餐我带三明治。'],['🍳 早餐','Mum makes a sandwich for me.','妈妈给我做三明治。']]);
+D('hot dog','','hot dog','热狗','🌭',[['🌭 说美食','A hot dog is a sausage in bread.','热狗是面包夹香肠。'],['🎪 游乐园','I buy a hot dog at the fair.','我在游乐场买热狗。']]);
+D('taste','/teɪst/','taste','尝起来','👅',[['👅 说味道','The soup tastes good.','汤尝起来很鲜。'],['🍓 吃东西','Taste the strawberry!','尝尝这个草莓！']]);
+D('different','/ˈdɪfrənt/','dif·fe·rent','不同的','🎨',[['🎨 说不同','The two pictures are different.','这两幅画不一样。'],['🌍 说世界','Different countries have different food.','不同的国家有不同的食物。']]);
+D('fish and chips','','fish and chips','炸鱼薯条','🍟',[['🐟 英国菜','Fish and chips is famous in the UK.','炸鱼薯条在英国很有名。'],['🍽️ 点餐','I order fish and chips.','我点炸鱼薯条。']]);
+D('beef','/biːf/','beef','牛肉','🥩',[['🥩 吃饭','I like beef noodles.','我喜欢牛肉面。'],['🍔 说汉堡','The hamburger has beef.','汉堡里有牛肉。']]);
+D('flour','/ˈflaʊə/','flour','面粉','🌾',[['🌾 做面食','Bread is made from flour.','面包是面粉做的。'],['🥟 包饺子','We use flour to make dumplings.','我们用面粉包饺子。']]);
+
+/* =====================================================================
+   数据存储
+===================================================================== */
+const LS_KEY = 'wordquest_v2'; // 词库大更新，换存档槽位（旧测试数据不影响）
+const IV = [1,2,4,7,15,30]; // 间隔复习（天）
+
+function uid(){ return 'u' + Math.random().toString(36).slice(2,8); }
+function todayStr(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function addDays(ds, n){ const d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function weekStartStr(){ const d = new Date(); const dow = (d.getDay()+6)%7; d.setDate(d.getDate()-dow); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function shuffle(a){ return [...a].sort(()=>Math.random()-.5); }
+
+let S = load();
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); if(s && s.units) return s; }catch(e){}
+  // 首次使用：预置教材全部10个单元
+  return {
+    units: [
+      {id:uid(), name:'Unit 1', words:['new','school','classmate','teacher','play sports','read','book','study','hard','goal','want','friend','plan','follow','rabbit','walk','umbrella',"What's wrong?","It doesn't matter."]},
+      {id:uid(), name:'Unit 2', words:['be good at','draw','tell a story','dance','sing','use the computer','player','run','cool','be proud of','fly','jump']},
+      {id:uid(), name:'Unit 3', words:['garden','welcome','open','close','flower','vegetable','plant','beautiful','see','orange tree','tomato','carrot','leaf','water','grandpa','grow','grandma','tea']},
+      {id:uid(), name:'Unit 4', words:['water','find','river','lake','sea','water vapour','from','little by little','become','cloud','rain','snow','ice','water drop','where','cold','when','hot']},
+      {id:uid(), name:'Unit 5', words:['help','chore','busy','cook','do the dishes','clean the table','walk the dog','young','small','give your seat','excuse me','old','clothes','toy','drink water','fall','drop']},
+      {id:uid(), name:'Unit 6', words:['feel','sometimes','happy','sad','good','bad','excited','but','scared','tired','unhappy','What a pity!']},
+      {id:uid(), name:'Unit 7', words:['job','brave','driver','careful','police officer','dream','engineer','writer','doctor','chef','astronaut','spaceship','difficult','What about you?']},
+      {id:uid(), name:'Unit 8', words:['library','there','find the way','parent','get to','walk along','road','left','right','ask … for help','mum','museum','stay','wait for','phone','lost','call','Here we are.']},
+      {id:uid(), name:'Unit 9', words:['special days','miss','get together','the Double Ninth Festival','celebrate','climb the mountain','Chinese New Year','the Spring Festival','visit','the Lantern Festival','holiday','dragon dance','Long time no see.',"It's great to see you again.",'Very well.']},
+      {id:uid(), name:'Unit 10', words:['food','world','famous','noodle','pizza','sandwich','hot dog','taste','different','long','fish and chips','beef','bread','flour','cake']},
+    ],
+    wp:{},            // word -> {lv, next, streak, fails, miss:{idx:n}, seen}
+    checkins:[],
+    stars:0,
+    log:[],           // {d, secs, total, ok}
+    settings:{weekly:5},
+    custom:{},        // 手动词: word -> {c, p, s}
+  };
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+
+function wp(w){ return S.wp[w]; }
+function wpEnsure(w){ if(!S.wp[w]) S.wp[w] = {lv:0, next:todayStr(), streak:0, fails:0, miss:{}, seen:false, last:''}; return S.wp[w]; }
+
+function dictLookup(w){ // 大小写不敏感查找
+  if(DICT[w]) return w;
+  const lw = w.toLowerCase();
+  return Object.keys(DICT).find(k=>k.toLowerCase()===lw) || null;
+}
+function info(w){
+  const key = dictLookup(w);
+  const d = key ? DICT[key] : null;
+  if(d) return d;
+  const c = S.custom[w] || {};
+  return { p:c.p||'', s:c.s||w.split(' ').join('·'), c:c.c||'（待补充）', e:'🔤',
+    sc:[['🗣️ 认识它', 'My new word is ' + w + '.', '我的新单词是 ' + w + '。']] };
+}
+function allUnitWords(){ return S.units.flatMap(u=>u.words); }
+
+/* =====================================================================
+   发音
+===================================================================== */
+function speak(text){
+  try{
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; u.rate = 0.8;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* =====================================================================
+   导航
+===================================================================== */
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function tab(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderAll();
+  go(el.dataset.t);
+}
+
+/* =====================================================================
+   首页
+===================================================================== */
+function weekCheckins(){ const ws = weekStartStr(); return S.checkins.filter(d=>d>=ws).length; }
+function currentStreak(){
+  let n = 0; let d = todayStr();
+  if(!S.checkins.includes(d)) d = addDays(d,-1);
+  while(S.checkins.includes(d)){ n++; d = addDays(d,-1); }
+  return n;
+}
+function mistakeWords(){
+  return allUnitWords().filter(w=>{ const p = wp(w); return p && p.fails>0 && p.streak<3; });
+}
+function planToday(){
+  const today = todayStr();
+  const seen = allUnitWords().filter(w=>wp(w) && wp(w).seen);
+  const due = seen.filter(w=>wp(w).next <= today)
+    .sort((a,b)=>(wp(a).next<wp(b).next?-1:1) || (wp(b).fails-wp(a).fails));
+  const news = [];
+  for(const u of S.units){
+    for(const w of u.words){
+      if(!news.includes(w) && (!wp(w) || !wp(w).seen)) news.push(w);
+    }
+    if(news.length>=3) break;
+  }
+  const reviews = due.slice(0,5).map(w=>({w, type:'review'}));
+  const newOnes = news.slice(0,3).map(w=>({w, type:'new'}));
+  return [...reviews, ...newOnes];
+}
+
+function renderHome(){
+  const el = document.getElementById('s-home');
+  const doneToday = S.checkins.includes(todayStr());
+  const plan = planToday();
+  const mistakes = mistakeWords();
+  const goal = S.settings.weekly, hits = weekCheckins();
+  const h = new Date().getHours();
+  const greet = h<11 ? '早上好' : h<14 ? '中午好' : h<18 ? '下午好' : '晚上好';
+
+  let dots = '';
+  for(let i=0;i<goal;i++) dots += `<i class="${i<hits?'hit':''}">${i<hits?'⭐':i+1}</i>`;
+
+  el.innerHTML = `
+    <div class="topbar">
+      <h1>🌞 ${greet}，小朋友！</h1>
+      <div class="streak">🔥 连续 ${currentStreak()} 天</div>
+    </div>
+
+    ${doneToday ? `
+    <div class="card" style="text-align:center; padding:26px 22px;">
+      <div style="font-size:52px;">🎉</div>
+      <p style="font-size:19px; line-height:1.8; margin-top:8px;">今天的打卡已完成，真棒！<br>
+      <span style="color:var(--ink-soft); font-size:15px;">想多练一会儿？可以自己去选单元哦</span></p>
+      <button class="big-btn teal" style="margin-top:16px;" onclick="go('s-units')">📚 加练一个单元</button>
+    </div>` : `
+    <div class="card" style="text-align:center; padding:26px 22px;">
+      <div class="tag">今日任务 · 约 8 分钟</div>
+      <div style="font-size:46px; margin:12px 0 4px;">${plan.length ? plan.slice(0,4).map(it=>info(it.w).e).join('') : '🎉'}</div>
+      ${plan.length ? `
+      <p style="font-size:18px; line-height:1.8;">
+        复习 <b style="color:var(--teal)">${plan.filter(i=>i.type==='review').length}</b> 个 ＋
+        新词 <b style="color:var(--orange-deep)">${plan.filter(i=>i.type==='new').length}</b> 个
+      </p>
+      <button class="big-btn" style="margin-top:18px;" onclick="startToday()">开始今天的探险 🚀</button>` : `
+      <p style="font-size:17px; color:var(--ink-soft); line-height:1.8;">今天没有到期要复习的词，也没有新词啦<br>让家长在「家长录词」里加新单元吧！</p>
+      <button class="big-btn teal" style="margin-top:16px;" onclick="go('s-units')">📚 自己选单元练</button>`}
+    </div>`}
+
+    <div class="card" style="margin-top:14px;">
+      <b>📅 本周打卡目标</b>
+      <div class="week-dots">${dots}<span>${hits} / ${goal} 次${hits>=goal?' · 本周目标达成 🏅':''}</span></div>
+    </div>
+
+    <button class="big-btn teal" style="margin-top:14px; font-size:19px;" onclick="go('s-units')">📚 我想自己选单元练</button>
+    <button class="big-btn teal" style="margin-top:12px; font-size:19px; background:#5BA8DC; box-shadow:0 5px 0 #4A8BC0;" onclick="renderArena(); go('s-arena');">🎯 自由练习场（不计打卡，随时练手）</button>
+
+    <div class="stat-grid">
+      <div class="stat"><b>⭐ ${S.stars}</b><span>我的星星</span></div>
+      <div class="stat"><b>${allUnitWords().filter(w=>wp(w)&&wp(w).lv>=3&&wp(w).streak>=3).length}</b><span>已掌握单词</span></div>
+      <div class="stat"><b>${mistakes.length}</b><span>错词待消灭</span></div>
+    </div>`;
+}
+
+/* =====================================================================
+   单元选择
+===================================================================== */
+function renderUnits(){
+  const el = document.getElementById('s-units');
+  const today = todayStr();
+  el.innerHTML = `
+    <div class="topbar">
+      <h1>📚 选择练习单元</h1>
+      <button class="chip" onclick="go('s-home')">← 返回</button>
+    </div>
+    <div class="hint" style="margin:0 0 6px;">💡 选后面的单元，会自动带上前面单元的旧词一起复习（约占三成）</div>
+    ${S.units.length===0 ? '<div class="empty-note">还没有单元<br>请家长在「家长录词」里添加</div>' : ''}
+    ${S.units.map((u,idx)=>{
+      const seen = u.words.filter(w=>wp(w)&&wp(w).seen).length;
+      const mastered = u.words.filter(w=>wp(w)&&wp(w).lv>=3&&wp(w).streak>=3).length;
+      const miss = u.words.filter(w=>wp(w)&&wp(w).fails>0&&wp(w).streak<3).length;
+      const badge = mastered===u.words.length && u.words.length ? '<span class="u-badge done">✓ 已掌握</span>'
+        : seen>0 ? '<span class="u-badge doing">🔥 学习中</span>' : '<span class="u-badge new">🌱 新单元</span>';
+      return `<div class="card unit-card" onclick="startUnit('${u.id}')">
+        <span class="u-ico">${info(u.words[0]||'').e||'📚'}</span>
+        <div class="u-body">
+          <div class="u-name">${u.name}</div>
+          <div class="u-sub">${u.words.length} 个词 · 掌握 ${mastered}${miss?` · ${miss} 个在错词本`:''}</div>
+        </div>${badge}</div>`;
+    }).join('')}
+    <div class="hint">每次练同一单元：单词顺序打乱、例句随机换一批</div>`;
+}
+
+/* =====================================================================
+   学习流程引擎
+===================================================================== */
+let SES = null; // {items, steps, idx, start, results:{word:{pass, missIdx:[]}}}
+
+function buildSession(items, label, free){
+  // 第一段：学 —— 所有新词卡片连续过完（只看不考）
+  const cards = items.filter(it=>it.type==='new').map(it=>({kind:'card', w:it.w, phase:'学一学'}));
+  // 第二段：练 —— 全部词打乱混在一起考，考的时候已经隔了几个词
+  const practice = items.map(it=> it.type==='new'
+    ? {kind:'missing', w:it.w, hard:false, phase:'练一练'}
+    : {kind:'dictation', w:it.w, phase:'练一练'});
+  const quizWords = shuffle(items.filter(it=>DICT[it.w])).slice(0,2);
+  quizWords.forEach(it=>practice.push({kind:'quiz', w:it.w, phase:'练一练'}));
+  const steps = [...cards, ...shuffle(practice)];
+  SES = { steps, idx:0, start:Date.now(), results:{}, label, free:!!free, retried:false };
+  steps.forEach(st=>{ if(!SES.results[st.w]) SES.results[st.w] = {pass:true, missIdx:[]}; });
+}
+function startToday(){
+  const plan = planToday();
+  if(!plan.length) return;
+  buildSession(plan, '今日任务');
+  go('s-play'); renderStep();
+}
+function startUnit(unitId){
+  const idx = S.units.findIndex(u=>u.id===unitId);
+  if(idx<0) return;
+  const u = S.units[idx];
+  const main = shuffle(u.words).slice(0,8).map(w=>({w, type:(wp(w)&&wp(w).seen)?'review':'new'}));
+  // 混入前面单元的旧词（30%），错词本优先
+  let mix = [];
+  if(idx>0){
+    const earlier = S.units.slice(0,idx).flatMap(x=>x.words).filter(w=>wp(w)&&wp(w).seen);
+    earlier.sort((a,b)=>{ const pa=wp(a),pb=wp(b); return (pa.streak-pb.streak) || (pb.fails-pa.fails); });
+    const n = Math.max(1, Math.round(main.length*0.3));
+    mix = earlier.slice(0,n).map(w=>({w, type:'review'}));
+  }
+  const items = shuffle([...main, ...mix]).slice(0,9);
+  buildSession(items, u.name + (mix.length?`（混入 ${mix.length} 个复习词）`:''));
+  go('s-play'); renderStep();
+}
+
+function renderStepsBar(){
+  const bar = document.getElementById('play-steps');
+  bar.innerHTML = SES.steps.map((_,i)=>{
+    const cls = i<SES.idx ? 'done' : i===SES.idx ? 'now' : '';
+    return `<i class="${cls}"></i>`;
+  }).join('');
+}
+
+function renderStep(){
+  renderStepsBar();
+  const st = SES.steps[SES.idx];
+  const body = document.getElementById('play-body');
+  if(!st){ finishSession(); return; }
+  if(st.kind==='card') renderCard(body, st);
+  else if(st.kind==='missing') renderMissing(body, st);
+  else if(st.kind==='dictation') renderDictation(body, st);
+  else if(st.kind==='quiz') renderQuiz(body, st);
+}
+function nextStep(){
+  SES.idx++;
+  // 第三段：回炉 —— 练完一轮后，错的词当场再来一次（不影响成绩记录，只纠正）
+  if(SES.idx >= SES.steps.length && !SES.retried && !SES.free){
+    const failed = Object.keys(SES.results).filter(w=>!SES.results[w].pass);
+    if(failed.length){
+      SES.retried = true;
+      failed.forEach(w=>{
+        const orig = SES.steps.find(s=>s.w===w && (s.kind==='missing'||s.kind==='dictation'));
+        SES.steps.push({kind:(orig&&orig.kind)||'missing', w, hard:false, retry:true, phase:'回炉重练'});
+      });
+    }
+  }
+  renderStep();
+}
+
+/* —— 步骤1：认识单词 —— */
+function renderCard(body, st){
+  const d = info(st.w);
+  const scenes = shuffle(d.sc).slice(0,2);
+  body.innerHTML = `
+    <span class="tag">${SES.label||''} · ${st.phase||'学一学'}</span>
+    <div class="card word-hero" style="margin-top:12px;">
+      <div class="pic">${d.e}</div>
+      <div class="en">${st.w}</div>
+      <div class="phon">${d.p}</div>
+      <div class="syll">${d.s}</div>
+      <div class="cn">${d.c}</div>
+      <button class="speak-btn" id="spk">🔊 听单词</button>
+      <div id="scenes"></div>
+    </div>
+    <button class="big-btn" style="margin-top:16px;" id="go-btn">我认识了，考考我 →</button>`;
+  document.getElementById('spk').onclick = ()=>speak(st.w);
+  document.getElementById('go-btn').onclick = nextStep;
+  const box = document.getElementById('scenes');
+  scenes.forEach(([tag,en,cn])=>{
+    const div = document.createElement('div');
+    div.className = 'scene-card';
+    div.innerHTML = `
+      <div class="sc-head"><span class="sc-tag">${tag}</span><button class="mini-speak">🔊</button></div>
+      <div class="sc-en">${en}</div>
+      <div class="sc-cn">${cn}</div>`;
+    div.querySelector('.mini-speak').onclick = ()=>speak(en);
+    box.appendChild(div);
+  });
+  speak(st.w);
+}
+
+/* —— 步骤2：缺字母 —— */
+function renderMissing(body, st){
+  const chars = st.w.split('');                       // 保留空格和标点
+  const isLetter = c=>/[a-zA-Z]/.test(c);
+  const letterIdx = chars.map((c,i)=>isLetter(c)?i:-1).filter(i=>i>=0);
+  const p = wp(st.w);
+  // 空格数：新词1-2个，复习2-3个；优先挖她错过的位置，首字母保留做提示
+  let n = st.hard ? Math.min(3, Math.max(2, Math.round(letterIdx.length/2)))
+                  : Math.min(2, Math.max(1, Math.round(letterIdx.length/3)));
+  n = Math.min(n, Math.max(0, letterIdx.length-2));
+  if(n < 1){ nextStep(); return; }
+  const missedIdx = Object.keys((p&&p.miss)||{}).map(Number)
+    .filter(i=>letterIdx.includes(i) && i!==letterIdx[0]).sort((a,b)=>p.miss[b]-p.miss[a]);
+  const candidates = letterIdx.filter(i=>i!==letterIdx[0]);
+  let blanks = missedIdx.slice(0,n);
+  for(const i of shuffle(candidates)){ if(blanks.length>=n) break; if(!blanks.includes(i)) blanks.push(i); }
+  blanks.sort((a,b)=>a-b);
+
+  body.innerHTML = `
+    <span class="tag">${SES.label||''} · ${st.retry?'🔄 回炉重练':(st.phase||'练一练')+' · 拼一拼'}</span>
+    <div class="card" style="margin-top:12px; text-align:center;">
+      <div style="font-size:44px;">${info(st.w).e}</div>
+      <div class="hint" style="margin:2px 0 0;">${info(st.w).c} · ${info(st.w).s}</div>
+      <div class="spell-row" id="slots"></div>
+      <div class="letters" id="pool"></div>
+      <button class="speak-btn" id="spk">🔊 听发音</button>
+    </div>`;
+  document.getElementById('spk').onclick = ()=>speak(st.w);
+
+  const slots = document.getElementById('slots');
+  chars.forEach((ch,i)=>{
+    if(ch===' '){ const sp=document.createElement('div'); sp.style.width='14px'; slots.appendChild(sp); return; }
+    if(!isLetter(ch)){
+      const fx=document.createElement('div');
+      fx.style.cssText='display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:bold;min-width:14px;';
+      fx.textContent=ch; slots.appendChild(fx); return;
+    }
+    const d = document.createElement('div');
+    if(blanks.includes(i)){ d.className='slot blank'; d.dataset.need=ch; d.dataset.idx=i; d.textContent='?'; }
+    else { d.className='slot'; d.textContent=ch; }
+    slots.appendChild(d);
+  });
+
+  // 缺几个字母就给几个正确按钮 + 2个干扰
+  const needed = blanks.map(i=>chars[i]);
+  const distract = shuffle('abcdefghijklmnopqrstuvwxyz'.split('').filter(c=>!needed.map(x=>x.toLowerCase()).includes(c))).slice(0,2);
+  const pool = document.getElementById('pool');
+  shuffle([...needed, ...distract]).forEach(ch=>{
+    const b = document.createElement('button');
+    b.className='letter-btn'; b.textContent=ch;
+    b.onclick = ()=>{
+      const blank = document.querySelector('.slot.blank');
+      if(!blank) return;
+      if(ch === blank.dataset.need){
+        blank.textContent = ch; blank.classList.remove('blank'); blank.classList.add('right');
+        b.classList.add('used');
+        if(!document.querySelector('.slot.blank')){
+          speak(st.w);
+          setTimeout(nextStep, 800);
+        }
+      } else {
+        blank.classList.add('wrong');
+        setTimeout(()=>blank.classList.remove('wrong'), 350);
+        if(!st.retry){
+          const r = SES.results[st.w];
+          r.pass = false;
+          const ix = Number(blank.dataset.idx);
+          if(!r.missIdx.includes(ix)) r.missIdx.push(ix);
+        }
+      }
+    };
+    pool.appendChild(b);
+  });
+}
+
+/* —— 步骤3：听音默写 —— */
+function renderDictation(body, st){
+  const word = st.w;
+  const letters = word.split('');
+  const d = info(word);
+  body.innerHTML = `
+    <span class="tag">${SES.label||''} · ${st.retry?'🔄 回炉重练':(st.phase||'练一练')+' · 听音默写'}</span>
+    <div class="card" style="margin-top:12px; text-align:center;">
+      <div class="hint" style="margin-top:0;">听到什么写什么，写完点「检查」</div>
+      <button class="speak-btn" style="font-size:22px; padding:14px 30px;" id="spk">🔊 播放单词</button>
+      <div class="dict-row" id="inputs"></div>
+      <div class="hint" id="dict-hint" style="display:none;">💡 提示：${d.c} · 可以分成 ${d.s}</div>
+      <button class="link-btn" id="hint-btn" style="margin-bottom:6px;">实在不会？点我要提示</button>
+      <button class="big-btn" style="margin-top:10px;" id="check">检查 ✔</button>
+    </div>`;
+  speak(word);
+  document.getElementById('spk').onclick = ()=>speak(word);
+
+  const row = document.getElementById('inputs');
+  letters.forEach((ch,i)=>{
+    if(ch===' '){ const sp = document.createElement('div'); sp.className='spacer'; row.appendChild(sp); return; }
+    if(!/[a-zA-Z]/.test(ch)){ // 标点直接固定显示，不需要默写
+      const fx = document.createElement('div');
+      fx.style.cssText='display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;min-width:16px;';
+      fx.textContent = ch; row.appendChild(fx); return;
+    }
+    const inp = document.createElement('input');
+    inp.maxLength = 1; inp.dataset.ch = ch; inp.dataset.i = i;
+    inp.setAttribute('autocapitalize','off'); inp.setAttribute('autocomplete','off');
+    inp.oninput = ()=>{ const nx = [...row.querySelectorAll('input')]; const k = nx.indexOf(inp); if(inp.value && nx[k+1]) nx[k+1].focus(); };
+    row.appendChild(inp);
+  });
+
+  let tried = false;
+  document.getElementById('hint-btn').onclick = ()=>{ document.getElementById('dict-hint').style.display='block'; };
+  document.getElementById('check').onclick = ()=>{
+    const inputs = [...row.querySelectorAll('input')];
+    let allRight = true;
+    inputs.forEach(inp=>{
+      const ok = inp.value.toLowerCase() === inp.dataset.ch.toLowerCase();
+      inp.style.borderColor = ok ? 'var(--teal)' : 'var(--red)';
+      if(!ok && !st.retry){
+        const r = SES.results[st.w];
+        const ix = Number(inp.dataset.i);
+        if(!r.missIdx.includes(ix)) r.missIdx.push(ix);
+      }
+      if(!ok) allRight = false;
+    });
+    if(allRight){
+      if(tried && !st.retry) SES.results[st.w].pass = false; // 第一次没全对也算没一次通过
+      speak(word);
+      setTimeout(nextStep, 700);
+    } else {
+      tried = true;
+      if(!st.retry) SES.results[st.w].pass = false;
+      document.getElementById('dict-hint').style.display = 'block'; // 错了才给提示
+    }
+  };
+}
+
+/* —— 步骤4：场景选择题（3个选项，均可听；选对后播完整句再跳转） —— */
+function speakCb(text, cb){
+  try{
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; u.rate = 0.8;
+    let done = false;
+    const fin = ()=>{ if(!done){ done = true; cb && cb(); } };
+    u.onend = fin;
+    setTimeout(fin, 8000); // 兜底，防止onend不触发卡死
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){ cb && cb(); }
+}
+function renderQuiz(body, st){
+  const d = info(st.w);
+  const correct = d.sc[Math.floor(Math.random()*d.sc.length)];
+  // 干扰项：从别的词的例句里抽2个
+  const others = shuffle(Object.keys(DICT).filter(w=>w!==st.w && DICT[w].sc.length)).slice(0,2);
+  if(!others.length){ nextStep(); return; }
+  const options = shuffle([
+    {s:correct, ok:true, w:st.w},
+    ...others.map(w=>({s:DICT[w].sc[Math.floor(Math.random()*DICT[w].sc.length)], ok:false, w}))
+  ]);
+
+  body.innerHTML = `
+    <span class="tag">${SES.label||''} · ${st.phase||'练一练'} · 想一想</span>
+    <div class="card" style="margin-top:12px; text-align:center;">
+      <div style="font-size:20px;">哪个场景用 <b style="color:var(--orange-deep); font-size:24px;">${st.w}</b>（${d.c}）？</div>
+      <div class="hint" style="margin-top:4px;">可以先点 🔊 听一听每个句子，再选</div>
+    </div>
+    <div id="opts"></div>`;
+  const box = document.getElementById('opts');
+  options.forEach(op=>{
+    const div = document.createElement('div');
+    div.className = 'card choice';
+    div.style.display = 'flex'; div.style.alignItems = 'center'; div.style.gap = '12px';
+    div.innerHTML = `
+      <div style="flex:1;"><span class="em">${info(op.w).e}</span>${op.s[2]}<br><small style="color:var(--ink-soft)">${op.s[1]}</small></div>
+      <button class="mini-speak">🔊</button>`;
+    div.querySelector('.mini-speak').onclick = (e)=>{ e.stopPropagation(); speak(op.s[1]); };
+    div.onclick = ()=>{
+      if(op.ok){
+        [...box.children].forEach(c=>c.style.pointerEvents='none');
+        div.classList.add('picked-right');
+        speakCb(op.s[1], nextStep);   // 播完整句再进下一题
+      } else {
+        div.classList.add('picked-wrong');
+        setTimeout(()=>div.classList.remove('picked-wrong'), 900);
+      }
+    };
+    box.appendChild(div);
+  });
+}
+
+/* —— 结算 —— */
+function finishSession(){
+  const secs = Math.round((Date.now()-SES.start)/1000);
+  const words = Object.keys(SES.results);
+  let okCount = 0;
+  const today = todayStr();
+  words.forEach(w=>{
+    const p = wpEnsure(w);
+    const r = SES.results[w];
+    p.seen = true; p.last = today;
+    r.missIdx.forEach(ix=>{ p.miss[ix] = (p.miss[ix]||0)+1; });
+    if(r.pass){
+      okCount++;
+      p.streak++;
+      p.lv = Math.min(5, p.lv+1);
+      p.next = addDays(today, IV[p.lv]);
+    } else {
+      p.fails++;
+      p.streak = 0;
+      p.lv = Math.max(0, p.lv-1);
+      p.next = addDays(today, 1);
+    }
+  });
+  const acc = words.length ? okCount/words.length : 1;
+  const earned = acc>=0.9 ? 3 : acc>=0.7 ? 2 : 1;
+  S.stars += earned;
+  if(!SES.free && !S.checkins.includes(today)) S.checkins.push(today); // 自由练习不算打卡
+  S.log.push({d:today, secs, total:words.length, ok:okCount});
+  save();
+
+  const graduated = words.filter(w=>{ const p=wp(w); return p.fails>0 && p.streak>=3; });
+  const mm = Math.floor(secs/60), ss = secs%60;
+  document.getElementById('play-body').innerHTML = `
+    <div class="card" style="text-align:center; padding:36px 22px; margin-top:10px;">
+      <div style="font-size:26px; font-weight:bold;">${SES.free ? '自由练习完成！' : '任务完成啦！'}</div>
+      <div class="stars">${'<span>⭐</span>'.repeat(earned)}</div>
+      <p style="font-size:17px; color:var(--ink-soft); line-height:1.9;">
+        用时 ${mm?mm+' 分 ':''}${ss} 秒 · 共 ${words.length} 个词 · 一次通过 ${okCount} 个<br>
+        ${SES.retried ? '错了的词已经当场回炉重练过 💪<br>' : ''}
+        ${graduated.length?`<b style="color:var(--orange-deep)">${graduated.join('、')} 从错词本毕业啦 🎓</b><br>`:''}
+        ${SES.free ? '本次是自由练习，不计打卡' : `本周打卡 ${weekCheckins()} / ${S.settings.weekly} 次`}
+      </p>
+      <button class="big-btn" style="margin-top:22px;" onclick="goHome()">收下星星，明天见 🌙</button>
+    </div>`;
+  document.getElementById('play-steps').innerHTML = SES.steps.map(()=>'<i class="done"></i>').join('');
+}
+function goHome(){ renderAll(); go('s-home'); }
+
+/* =====================================================================
+   自由练习场
+===================================================================== */
+let arenaMode = 'missing', arenaScope = 'mistakes';
+function renderArena(){
+  const el = document.getElementById('s-arena');
+  el.innerHTML = `
+    <div class="topbar">
+      <h1>🎯 自由练习场</h1>
+      <button class="chip" onclick="goHome()">← 返回</button>
+    </div>
+    <div class="hint" style="margin-top:0;">不计打卡、不影响今天任务，随时练手。练错照样进错词本哦</div>
+    <div class="card" style="margin-top:10px;">
+      <b>① 选玩法</b>
+      <div class="unit-chips" id="mode-chips"></div>
+      <b style="display:block; margin-top:18px;">② 选范围</b>
+      <div class="unit-chips" id="scope-chips"></div>
+      <button class="big-btn" style="margin-top:20px;" id="arena-go">开始闯关 🚀</button>
+    </div>`;
+  const modes = [['missing','🧩 拼写闯关'],['dictation','🎧 听写闯关'],['quiz','🎭 场景闯关']];
+  const mbox = document.getElementById('mode-chips');
+  modes.forEach(([id,name])=>{
+    const c = document.createElement('button');
+    c.className = 'chip' + (arenaMode===id?' on':'');
+    c.textContent = name;
+    c.onclick = ()=>{ arenaMode=id; renderArena(); };
+    mbox.appendChild(c);
+  });
+  const sbox = document.getElementById('scope-chips');
+  const scopes = [['mistakes','📕 错词本优先'], ...S.units.map(u=>[u.id, u.name])];
+  scopes.forEach(([id,name])=>{
+    const c = document.createElement('button');
+    c.className = 'chip' + (arenaScope===id?' on':'');
+    c.textContent = name;
+    c.onclick = ()=>{ arenaScope=id; renderArena(); };
+    sbox.appendChild(c);
+  });
+  document.getElementById('arena-go').onclick = startArena;
+}
+function startArena(){
+  let pool;
+  if(arenaScope==='mistakes'){
+    pool = mistakeWords().sort((a,b)=>wp(b).fails-wp(a).fails);
+  } else {
+    const u = S.units.find(x=>x.id===arenaScope);
+    pool = u ? shuffle(u.words) : [];
+  }
+  if(arenaMode==='quiz') pool = pool.filter(w=>dictLookup(w)); // 场景题需要词库例句
+  pool = pool.slice(0,6);
+  if(!pool.length){
+    alert(arenaScope==='mistakes'
+      ? '错词本是空的，太棒了！换个单元练吧'
+      : (arenaMode==='quiz' ? '这个单元没有词库例句，换个玩法吧' : '这个范围暂时没有可练的词'));
+    return;
+  }
+  const steps = pool.map(w=>({kind:arenaMode, w, hard:!!(wp(w)&&wp(w).seen), phase:'自由练习'}));
+  SES = { steps, idx:0, start:Date.now(), results:{}, label:'🎯 自由练习', free:true, retried:true };
+  steps.forEach(st=>{ SES.results[st.w] = {pass:true, missIdx:[]}; });
+  go('s-play'); renderStep();
+}
+
+/* =====================================================================
+   错词本
+===================================================================== */
+function renderMistake(){
+  const el = document.getElementById('s-mistake');
+  const list = mistakeWords().sort((a,b)=>(wp(b).fails-wp(a).fails));
+  const unitOf = w => (S.units.find(u=>u.words.includes(w))||{}).name || '';
+  el.innerHTML = `
+    <div class="topbar"><h1>📕 错词本</h1><span class="tag">${list.length ? '消灭它们！' : '太棒了'}</span></div>
+    ${list.length===0 ? '<div class="card empty-note">🎉 错词本是空的！<br>继续保持哦</div>' : `
+    <div class="card">
+      ${list.map(w=>{
+        const p = wp(w);
+        // 标红最常错的字母
+        const missTop = Object.entries(p.miss).sort((a,b)=>b[1]-a[1]).map(x=>Number(x[0]));
+        const shown = w.split('').map((ch,i)=> missTop.slice(0,1).includes(i) ? `<b>${ch}</b>` : ch).join('');
+        return `<div class="miss-item">
+          <div>
+            <div class="w">${shown} <span style="font-size:12px; color:var(--ink-soft); font-weight:normal;">${unitOf(w)}</span></div>
+            <div class="tip">${info(w).c} · 已连续拼对 ${p.streak} / 3 次</div>
+          </div>
+          <span class="pill">${p.next<=todayStr()?'今天复习':p.next}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="hint" style="padding:0 6px;">规则：一个词连续拼对 3 次，就从错词本"毕业"🎓</div>`}`;
+}
+
+/* =====================================================================
+   家长页
+===================================================================== */
+let curUnitId = null;
+function renderParent(){
+  const el = document.getElementById('s-parent');
+  if(!curUnitId || !S.units.find(u=>u.id===curUnitId)) curUnitId = S.units[0] ? S.units[0].id : null;
+
+  // 统计
+  const today = todayStr(), ws = weekStartStr();
+  const todayLog = S.log.filter(l=>l.d===today);
+  const todaySecs = todayLog.reduce((a,b)=>a+b.secs,0);
+  const weekLog = S.log.filter(l=>l.d>=ws);
+  const weekAcc = weekLog.length ? Math.round(100*weekLog.reduce((a,b)=>a+b.ok/b.total,0)/weekLog.length) : null;
+
+  // 易错字母统计
+  const letterCount = {};
+  Object.entries(S.wp).forEach(([w,p])=>{
+    Object.entries(p.miss||{}).forEach(([ix,n])=>{
+      const ch = (w.replace(/ /g,'')[ix]||'').toLowerCase();
+      if(ch) letterCount[ch] = (letterCount[ch]||0)+n;
+    });
+  });
+  const topLetters = Object.entries(letterCount).sort((a,b)=>b[1]-a[1]).slice(0,4);
+
+  el.innerHTML = `
+    <div class="topbar"><h1>👨‍👩‍👧 家长小助手</h1></div>
+
+    <div class="stat-grid">
+      <div class="stat"><b>${todaySecs? Math.floor(todaySecs/60)+"'"+(todaySecs%60)+'"' : '—'}</b><span>今日用时</span></div>
+      <div class="stat"><b>${weekCheckins()}/${S.settings.weekly}</b><span>本周打卡</span></div>
+      <div class="stat"><b>${weekAcc===null?'—':weekAcc+'%'}</b><span>本周一次通过率</span></div>
+    </div>
+
+    <div class="card">
+      <b>📝 按单元录入单词</b>
+      <div class="hint">① 选单元（没有就点「➕ 新单元」）→ ② 粘贴英文，每行一个 → ③ 自动生成词卡。<b style="color:#1A8F85">音标、中文、场景例句自动补好</b>（内置小学核心词库 ${Object.keys(DICT).length} 词，教材常见词全覆盖）。</div>
+      <div class="unit-chips" id="unit-chips"></div>
+      <textarea id="wordInput" style="margin-top:12px;" placeholder="只输英文，每行一个，例如：&#10;banana&#10;strawberry&#10;watermelon"></textarea>
+      <button class="big-btn" style="margin-top:12px; font-size:18px;" id="autofill-btn">✨ 自动生成词卡并存入单元</button>
+      <div class="word-table" id="wordTable"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <b>🗂️ 已录入的单元</b>
+      <div id="saved-units"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <b>📊 她的薄弱点（自动统计）</b>
+      ${topLetters.length ? `<div class="hint" style="margin-top:8px;">最常写错的字母：${topLetters.map(([c,n])=>`<b style="color:var(--red)">${c}</b>（${n}次）`).join('、')}<br>建议：错词本里的词多听写几轮，拼的时候按音节分块记。</div>`
+        : '<div class="hint" style="margin-top:8px;">还没有错题数据，练几天后来看看。</div>'}
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <b>⚙️ 设置</b>
+      <div class="goal-row">
+        <span style="font-size:15px;">每周打卡目标：</span>
+        ${[3,4,5,6,7].map(n=>`<button class="chip ${S.settings.weekly===n?'on':''}" onclick="setWeekly(${n})">${n} 次</button>`).join('')}
+      </div>
+      <div style="margin-top:18px; border-top:2px solid #F7EDE0; padding-top:14px;">
+        <b style="font-size:15px;">💾 学习数据备份</b>
+        <div class="hint" style="margin-top:4px;">数据只存在这台 iPad 上。建议<b>每周点一次「导出备份码」</b>，复制发到微信收藏；换设备或数据丢了，粘贴回来点「导入」即可恢复。</div>
+        <div class="goal-row">
+          <button class="chip" onclick="exportData()">📤 导出备份码</button>
+          <button class="chip" onclick="importData()">📥 导入备份码</button>
+        </div>
+        <textarea id="backup-box" style="display:none; margin-top:10px; min-height:70px; font-size:13px;" placeholder="导出的备份码会出现在这里；导入时把备份码粘贴到这里"></textarea>
+      </div>
+      <div style="margin-top:12px; text-align:right;">
+        <button class="link-btn" onclick="resetAll()">🗑️ 清空全部数据（慎用）</button>
+      </div>
+    </div>`;
+
+  renderUnitChips();
+  renderSavedUnits();
+  document.getElementById('autofill-btn').onclick = autoFill;
+}
+
+function setWeekly(n){ S.settings.weekly = n; save(); renderParent(); }
+
+/* 备份 / 恢复 */
+function exportData(){
+  const box = document.getElementById('backup-box');
+  box.style.display = 'block'; box.readOnly = true;
+  box.value = 'WQ2:' + btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  box.select();
+  const done = ()=>alert('备份码已生成并尝试复制 ✅\n\n如果已复制：去微信发给"文件传输助手"或收藏，写上周几。\n如果没复制成功：长按文本框 → 全选 → 拷贝。');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(box.value).then(done, ()=>{ try{ document.execCommand('copy'); }catch(e){} done(); });
+  } else {
+    try{ document.execCommand('copy'); }catch(e){}
+    done();
+  }
+}
+function importData(){
+  const box = document.getElementById('backup-box');
+  box.style.display = 'block';
+  const raw = (box.value||'').trim();
+  if(!raw){ box.readOnly = false; box.focus(); alert('请先把备份码粘贴到下面的文本框，再点一次「导入备份码」'); return; }
+  try{
+    const json = raw.startsWith('WQ2:') ? decodeURIComponent(escape(atob(raw.slice(4)))) : raw;
+    const data = JSON.parse(json);
+    if(!data || !Array.isArray(data.units) || !data.settings) throw new Error('bad');
+    if(!confirm('导入会覆盖当前所有学习数据，确定吗？')) return;
+    S = data; save(); renderAll(); go('s-home');
+    alert('✅ 恢复成功！单词、打卡、错词本都回来了');
+  }catch(e){
+    alert('备份码不对，请检查是否完整复制（很长一串，别漏头尾）');
+  }
+}
+function resetAll(){
+  if(confirm('确定清空吗？会删掉所有单元、进度和打卡记录！')){
+    if(confirm('再确认一次：真的全部清空？')){
+      localStorage.removeItem(LS_KEY);
+      S = load(); save();
+      renderAll(); go('s-home');
+    }
+  }
+}
+
+function renderUnitChips(){
+  const box = document.getElementById('unit-chips');
+  if(!box) return;
+  box.innerHTML = '';
+  S.units.forEach(u=>{
+    const c = document.createElement('button');
+    c.className = 'chip' + (u.id===curUnitId ? ' on' : '');
+    c.textContent = u.name;
+    c.onclick = ()=>{ curUnitId = u.id; renderUnitChips(); };
+    box.appendChild(c);
+  });
+  const add = document.createElement('button');
+  add.className = 'chip add';
+  add.textContent = '➕ 新单元';
+  add.onclick = ()=>{
+    const name = prompt('新单元叫什么？例如「Unit 4 · 食物」');
+    if(name && name.trim()){
+      const u = {id:uid(), name:name.trim(), words:[]};
+      S.units.push(u); curUnitId = u.id; save();
+      renderParent();
+    }
+  };
+  box.appendChild(add);
+}
+
+function renderSavedUnits(){
+  const box = document.getElementById('saved-units');
+  if(!box) return;
+  box.innerHTML = S.units.length ? '' : '<div class="hint">还没有单元</div>';
+  S.units.forEach(u=>{
+    const div = document.createElement('div');
+    div.className = 'saved-unit';
+    div.innerHTML = `<b>${u.name}</b> <span style="font-size:13px; color:var(--ink-soft);">（${u.words.length} 个词）</span>
+      <button class="link-btn" style="float:right;" data-del-unit="${u.id}">删除单元</button>
+      <div class="words"></div>`;
+    const wbox = div.querySelector('.words');
+    wbox.innerHTML = u.words.length
+      ? u.words.map(w=>`<span class="wchip">${info(w).e} ${w}<i data-del-word="${w}" data-unit="${u.id}">×</i></span>`).join('')
+      : '<span style="font-size:13px; color:var(--ink-soft);">还没有单词，去上面录一点吧</span>';
+    box.appendChild(div);
+  });
+  box.querySelectorAll('[data-del-word]').forEach(el=>{
+    el.onclick = ()=>{
+      const u = S.units.find(x=>x.id===el.dataset.unit);
+      if(u){ u.words = u.words.filter(w=>w!==el.dataset.delWord); save(); renderSavedUnits(); }
+    };
+  });
+  box.querySelectorAll('[data-del-unit]').forEach(el=>{
+    el.onclick = ()=>{
+      if(confirm('删除整个单元？里面的单词也会移除。')){
+        S.units = S.units.filter(x=>x.id!==el.dataset.delUnit);
+        save(); renderParent();
+      }
+    };
+  });
+}
+
+function autoFill(){
+  const ta = document.getElementById('wordInput');
+  const lines = ta.value.split('\n').map(s=>s.trim().toLowerCase().replace(/\s+/g,' ')).filter(Boolean);
+  if(!lines.length){ alert('先输入几行英文单词哦'); return; }
+  if(!curUnitId){
+    const name = prompt('还没有单元，先建一个吧（例如「Unit 4 · 食物」）');
+    if(!name || !name.trim()) return;
+    const u = {id:uid(), name:name.trim(), words:[]};
+    S.units.push(u); curUnitId = u.id; save();
+    renderUnitChips();
+  }
+  const u = S.units.find(x=>x.id===curUnitId);
+  const table = document.getElementById('wordTable');
+  table.innerHTML = '';
+  let auto = 0, manual = 0;
+  const manualWords = [];
+  lines.forEach(w=>{
+    const key = dictLookup(w);
+    const cw = key || w;            // 用词库里的标准写法（如 China）
+    const d = key ? DICT[key] : null;
+    const row = document.createElement('div');
+    row.className = 'wt-row';
+    if(d){
+      auto++;
+      row.innerHTML = `
+        <div class="wt-head">
+          <span class="wt-en">${d.e} ${cw}</span>
+          <span class="wt-phon">${d.p}</span>
+          <span class="wt-cn">${d.c}</span>
+          <span class="wt-auto">✓ 已自动生成</span>
+        </div>
+        <div class="hint" style="margin-top:6px;">${d.sc[0][0]}：${d.sc[0][1]}（${d.sc[0][2]}）· 共 ${d.sc.length} 条例句轮换</div>`;
+    } else {
+      manual++;
+      manualWords.push(cw);
+      row.innerHTML = `
+        <div class="wt-head">
+          <span class="wt-en">🔤 ${cw}</span>
+          <span class="wt-manual">词库未收录，请补中文</span>
+        </div>
+        <input placeholder="输入中文意思，例如：书包" data-manual="${cw}">`;
+    }
+    table.appendChild(row);
+    if(!u.words.includes(cw)) u.words.push(cw);
+  });
+  const summary = document.createElement('div');
+  summary.className = 'hint';
+  summary.innerHTML = `已存入 <b>${u.name}</b>：${auto} 个自动生成${manual?`，<b style="color:var(--red)">${manual} 个请在上方补中文后点这里 →</b> <button class="chip" id="save-manual">保存补充</button>`:''}`;
+  table.appendChild(summary);
+  ta.value = '';
+  save(); renderSavedUnits();
+  const sm = document.getElementById('save-manual');
+  if(sm) sm.onclick = ()=>{
+    document.querySelectorAll('[data-manual]').forEach(inp=>{
+      if(inp.value.trim()){
+        const w = inp.dataset.manual;
+        S.custom[w] = {c: inp.value.trim()};
+        inp.disabled = true;
+        const badge = inp.parentElement.querySelector('.wt-manual');
+        if(badge){ badge.textContent = '✓ 已保存'; badge.className = 'wt-auto'; }
+      }
+    });
+    save();
+  };
+}
+
+/* =====================================================================
+   启动
+===================================================================== */
+function renderAll(){ renderHome(); renderUnits(); renderMistake(); renderParent(); }
+renderAll();
+</script>
+</body>
+</html>
